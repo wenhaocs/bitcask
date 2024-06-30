@@ -1,5 +1,5 @@
 #include <stdio.h>
 
-int main(int, char**){
-    printf("Hello, from ProjectExample!\n");
+int main(int, char **) {
+  printf("Hello, from ProjectExample!\n");
 }
