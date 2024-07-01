@@ -20,11 +20,13 @@ link_directories(
 # Add the cmake directory to the module path
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
-
+# Find Gflags
+find_package(Gflags REQUIRED)
 # Find Glog
 find_package(Glog REQUIRED)
 
 # Include directories
+include_directories(${Gflags_INCLUDE_DIR})
 include_directories(${Glog_INCLUDE_DIR})
 include_directories(${CMAKE_SOURCE_DIR}/src)  # Add src directory to include paths
 
@@ -32,4 +34,4 @@ include_directories(${CMAKE_SOURCE_DIR}/src)  # Add src directory to include pat
 add_executable(project_example src/main.cpp)
 
 # Link libraries
-target_link_libraries(project_example ${Glog_LIBRARY} pthread)
+target_link_libraries(project_example glog gflags pthread)
