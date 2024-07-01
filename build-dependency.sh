@@ -134,6 +134,18 @@ make -s -j$(nproc)
 make -s install
 cd ../../
 
+# Build fmt
+echo "/************************/"
+echo "/*** Building fmt ***/"
+echo "/************************/"
+cd external/fmt
+mkdir -p build
+cd build
+cmake -DCMAKE_BUILD_TYPE=Release "${common_cmake_args[@]}" -DBUILD_TESTS=OFF -DFMT_TEST=OFF -DFMT_FUZZ=OFF -DFMT_INSTALL=ON ..
+make -s -j$(nproc)
+make -s install
+cd ../../..
+
 # Build gflags
 echo "/************************/"
 echo "/*** Building gflags ***/"
@@ -158,5 +170,6 @@ cmake -DCMAKE_BUILD_TYPE=Release "${common_cmake_args[@]}" -DBUILD_SHARED_LIBS=O
 make -s -j$(nproc)
 make -s install
 cd ../../..
+
 
 echo "Build complete."

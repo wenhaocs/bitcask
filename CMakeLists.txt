@@ -36,4 +36,4 @@ include_directories(${CMAKE_SOURCE_DIR}/src)  # Add src directory to include pat
 add_executable(project_example src/main.cpp)
 
 # Link libraries
-target_link_libraries(project_example glog gflags ${LIBUNWIND_LIBRARIES} pthread)
+target_link_libraries(project_example fmt glog gflags ${LIBUNWIND_LIBRARIES} pthread)

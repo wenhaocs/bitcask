@@ -1,6 +1,7 @@
 #include "common/Base.h"
 
 int main(int, char **) {
+  LOG(INFO) << "test";
   FLOG_INFO("This is an info message with number: {}", 42);
   // FLOG_WARN("This is a warning message with number: {}", 42);
   // FLOG_ERROR("This is an error message with number: {}", 42);

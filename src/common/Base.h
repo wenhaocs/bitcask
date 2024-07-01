@@ -2,7 +2,7 @@
 #define COMMON_BASE_H_
 
 #include <fcntl.h>
-// #include <fmt/core.h>
+#include <fmt/core.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -46,31 +46,18 @@
 #define UNUSED(x) (void)(x)
 #endif  // UNUSED
 
-// Utility function for formatted strings
-template <typename T>
-void appendToStream(std::ostringstream& oss, const T& value) {
-  oss << value;
-}
-
-template <typename... Args>
-std::string stringPrintf(const Args&... args) {
-  std::ostringstream oss;
-  (appendToStream(oss, args), ...);
-  return oss.str();
-}
-
 // Log levels
 enum LogLevel { FATAL, ERROR, WARNING, INFO, VERBOSE1, VERBOSE2, VERBOSE3, VERBOSE4 };
 
 // Formatted logging
-#define FLOG_FATAL(...) LOG(FATAL) << stringPrintf(__VA_ARGS__)
-#define FLOG_ERROR(...) LOG(ERROR) << stringPrintf(__VA_ARGS__)
-#define FLOG_WARN(...) LOG(WARNING) << stringPrintf(__VA_ARGS__)
-#define FLOG_INFO(...) LOG(INFO) << stringPrintf(__VA_ARGS__)
-#define FVLOG1(...) VLOG(1) << stringPrintf(__VA_ARGS__)
-#define FVLOG2(...) VLOG(2) << stringPrintf(__VA_ARGS__)
-#define FVLOG3(...) VLOG(3) << stringPrintf(__VA_ARGS__)
-#define FVLOG4(...) VLOG(4) << stringPrintf(__VA_ARGS__)
+#define FLOG_FATAL(...) LOG(FATAL) << fmt::format(__VA_ARGS__)
+#define FLOG_ERROR(...) LOG(ERROR) << fmt::format(__VA_ARGS__)
+#define FLOG_WARN(...) LOG(WARNING) << fmt::format(__VA_ARGS__)
+#define FLOG_INFO(...) LOG(INFO) << fmt::format(__VA_ARGS__)
+#define FVLOG1(...) VLOG(1) << fmt::format(__VA_ARGS__)
+#define FVLOG2(...) VLOG(2) << fmt::format(__VA_ARGS__)
+#define FVLOG3(...) VLOG(3) << fmt::format(__VA_ARGS__)
+#define FVLOG4(...) VLOG(4) << fmt::format(__VA_ARGS__)
 
 // namespace ProjectExample {
 
