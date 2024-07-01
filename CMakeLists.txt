@@ -24,6 +24,8 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 find_package(Gflags REQUIRED)
 # Find Glog
 find_package(Glog REQUIRED)
+# Find Libunwind
+find_package(Libunwind REQUIRED)
 
 # Include directories
 include_directories(${Gflags_INCLUDE_DIR})
@@ -34,4 +36,4 @@ include_directories(${CMAKE_SOURCE_DIR}/src)  # Add src directory to include pat
 add_executable(project_example src/main.cpp)
 
 # Link libraries
-target_link_libraries(project_example glog gflags pthread)
+target_link_libraries(project_example glog gflags ${LIBUNWIND_LIBRARIES} pthread)

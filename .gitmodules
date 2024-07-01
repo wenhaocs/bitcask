@@ -4,6 +4,3 @@
 [submodule "external/gflags"]
 	path = external/gflags
 	url = https://github.com/gflags/gflags
-[submodule "external/libunwind"]
-	path = external/libunwind
-	url = https://github.com/libunwind/libunwind.git
