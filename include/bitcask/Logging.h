@@ -1,5 +1,5 @@
-#ifndef COMMON_LOGGING_H_
-#define COMMON_LOGGING_H_
+#ifndef BITCASK_LOGGING_H_
+#define BITCASK_LOGGING_H_
 
 #include <glog/logging.h>
 
@@ -191,4 +191,4 @@
   true ? (void)0 : google::LogMessageVoidify() & COMPACT_GOOGLE_LOG_##severity.stream()
 #endif
 
-#endif  // COMMON_BASE_LOGGING_H_
+#endif  // BITCASK_LOGGING_H_

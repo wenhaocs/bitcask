@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(ProjectExample VERSION 0.1.0 LANGUAGES C CXX)
+project(bitcask VERSION 0.1.0 LANGUAGES C CXX)
 
 # Specify the C++ standard
 set(CMAKE_CXX_STANDARD 17)
@@ -30,10 +30,32 @@ find_package(Libunwind REQUIRED)
 # Include directories
 include_directories(${Gflags_INCLUDE_DIR})
 include_directories(${Glog_INCLUDE_DIR})
-include_directories(${CMAKE_SOURCE_DIR}/src)  # Add src directory to include paths
+include_directories(${CMAKE_SOURCE_DIR})  # Add src directory to include paths
+
+# Add the bitcask library
+add_library(bitcask STATIC
+    db/DBImpl.cpp
+)
+
+# Include directories for the bitcask library
+target_include_directories(bitcask
+    PUBLIC
+        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+)
+
+# Link libraries to bitcask
+# target_link_libraries(bitcask fmt glog gflags ${Libunwind_LIBRARIES} pthread)
 
 # Add the executable
-add_executable(project_example src/main.cpp)
+add_executable(example example/main.cpp)
 
-# Link libraries
-target_link_libraries(project_example fmt glog gflags ${LIBUNWIND_LIBRARIES} pthread)
+# Include directories for the example executable
+target_include_directories(example
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+        # ${PROJECT_SOURCE_DIR}/db
+)
+
+# Link libraries to the example executable
+target_link_libraries(example bitcask fmt glog gflags ${LIBUNWIND_LIBRARIES} pthread)

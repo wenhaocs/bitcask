@@ -1,5 +1,5 @@
-#ifndef COMMON_BASE_H_
-#define COMMON_BASE_H_
+#ifndef BITCASK_BASE_H_
+#define BITCASK_BASE_H_
 
 #include <fcntl.h>
 #include <fmt/core.h>
@@ -40,7 +40,7 @@
 #include <variant>
 #include <vector>
 
-#include "common/Logging.h"
+#include "bitcask/Logging.h"
 
 #ifndef UNUSED
 #define UNUSED(x) (void)(x)
@@ -59,7 +59,7 @@ enum LogLevel { FATAL, ERROR, WARNING, INFO, VERBOSE1, VERBOSE2, VERBOSE3, VERBO
 #define FVLOG3(...) VLOG(3) << fmt::format(__VA_ARGS__)
 #define FVLOG4(...) VLOG(4) << fmt::format(__VA_ARGS__)
 
-// namespace ProjectExample {
+namespace bitcask {
 
 using VariantType = std::variant<int64_t, double, bool, std::string>;
 
@@ -102,6 +102,6 @@ static constexpr auto is_constructible_v = std::is_constructible<T, Args...>::va
 template <typename U, typename T>
 static constexpr auto is_convertible_v = std::is_constructible<U, T>::value;
 
-// }  // namespace ProjectExample
+}  // namespace bitcask
 
-#endif  // COMMON_BASE_H_
+#endif  // BITCASK_BASE_H_
