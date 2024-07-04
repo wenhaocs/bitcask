@@ -10,8 +10,11 @@ struct Options {
   // Create an Options object with default values for all fields.
   Options() = default;
 
-  // If true, the database will be created if it is missing.
-  bool persist = false;
+  // If true, the database is open in read only mode.
+  bool readOnly = false;
+
+  // If this writer would prefer to sync the write file after every write operation
+  bool syncOnPut = false;
 
   size_t maxFileSize = 2 * 1024 * 1024;
 };
