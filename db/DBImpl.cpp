@@ -37,31 +37,62 @@ DBImpl::~DBImpl() {
 
 StatusOr<std::unique_ptr<DB>> DB::open(const std::string& dbname, const Options& options) {
   auto db = std::make_unique<DBImpl>(dbname, options);
+  // Try to lock the lock file. Is it's already acquired by another process, refuse to open.
+
+  // Replay WAL
+
+  // Load index from data files
+
   return db;
 }
 
 // Retrieve a value by key from a Bitcask datastore
 StatusOr<std::string> DBImpl::get(const std::string& key) {
   UNUSED(key);
+  // search the index
+  // read from disk
   return "";
 }
 
 // Store a key and value in a Bitcask datastore.
+// Note that the on disk part is written first then the in memory index. There is no need of
+// additional WAL.
 Status DBImpl::put(const std::string& key, const std::string& value) {
   UNUSED(key);
   UNUSED(value);
+
+  // Write to WAL
+
+  // Construct log record
+
+  // Append log record
+
+  // Update index
+
   return Status::OK();
 }
 
 // Delete a key from a Bitcask datastore
 Status DBImpl::deleteKey(const std::string& key) {
   UNUSED(key);
+  // check if key exists
+
+  // Write to WAL
+
+  // Construct log record
+
+  // Append log record
+
+  // delete in index
+
   return Status::OK();
 }
 
 // List all keys in a Bitcask datastore
 StatusOr<std::vector<std::string>> DBImpl::listKeys() {
   std::vector<std::string> res;
+
+  // iterate the index
   return res;
 };
 
@@ -73,11 +104,14 @@ Status DBImpl::merge(const std::string& name) {
 
 // Force any writes to sync to disk
 Status DBImpl::sync() {
+  // Sync active data file
   return Status::OK();
 }
 
 // Close a Bitcask data store and flush all pending writes (if any) to disk.
 Status DBImpl::close() {
+  // sync
+  // unlock the lock file
   return Status::OK();
 }
 
