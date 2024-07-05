@@ -6,7 +6,7 @@
 namespace bitcask {
 namespace crc {
 
-inline uint32_t crc32(const std::vector<uint8_t>& data);
+uint32_t crc32(const char* data, size_t length);
 
 }  // namespace crc
 }  // namespace bitcask

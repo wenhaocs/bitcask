@@ -1,14 +1,18 @@
 #ifndef DB_LOGRECORD_H_
 #define DB_LOGRECORD_H_
 
+#include <gtest/gtest_prod.h>
+
 #include "bitcask/Base.h"
 #include "bitcask/StatusOr.h"
 
 namespace bitcask {
 
 // Structure of log record in data file
-// crc | tstamp | LogType | keySize | valueSize | key | value
+// crc |tstamp | LogType | keySize | valueSize | key | value
 class LogRecord {
+  FRIEND_TEST(LogRecordTest, ConstructorTest);
+
  public:
   enum class LogType : uint8_t {
     WRITE = 0,
@@ -22,6 +26,7 @@ class LogRecord {
 
   LogRecord(const int32_t& key, const std::string& value, const LogType logType);
 
+  void encode();
 
   ~LogRecord() = default;
 
@@ -35,7 +40,7 @@ class LogRecord {
   LogType logType_;
 
   // store encoded str
-  std::string buf_;
+  char* buf_;
 
   static constexpr int kMaxValueSize = 4096;
 };
