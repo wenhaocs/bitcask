@@ -233,8 +233,4 @@ fi
 
 
 
-<<<<<<< HEAD
 echo "Build complete."
-=======
-echo "Build complete."
->>>>>>> minimal runnable library and test

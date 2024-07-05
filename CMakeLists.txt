@@ -35,6 +35,8 @@ include_directories(${CMAKE_SOURCE_DIR})  # Add src directory to include paths
 # Add the bitcask library
 add_library(bitcask STATIC
     db/DBImpl.cpp
+    utils/Crc.cpp
+    utils/WallClock.cpp
 )
 
 # Include directories for the bitcask library
