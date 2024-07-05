@@ -53,123 +53,184 @@ apply_configure_envs() {
 nproc=8
 
 # Build autoconf
-echo "/*****************************************/"
-echo "/*** Downloading and building autoconf ***/"
-echo "/*****************************************/"
-VERSION="2.71"
-URL="https://ftp.gnu.org/gnu/autoconf/autoconf-${VERSION}.tar.gz"
-cd external
-curl -sLO ${URL}
-tar -xzf autoconf-${VERSION}.tar.gz
-cd autoconf-${VERSION}
-apply_configure_envs
-./configure --prefix=${INSTALL_DIR}
-make -s -j$(nproc)
-make -s install
-cd ../../
+build_autoconf() {
+    echo "/*****************************************/"
+    echo "/*** Downloading and building autoconf ***/"
+    echo "/*****************************************/"
+    VERSION="2.71"
+    URL="https://ftp.gnu.org/gnu/autoconf/autoconf-${VERSION}.tar.gz"
+    cd external
+    curl -sLO ${URL}
+    tar -xzf autoconf-${VERSION}.tar.gz
+    cd autoconf-${VERSION}
+    apply_configure_envs
+    ./configure --prefix=${INSTALL_DIR}
+    make -s -j$(nproc)
+    make -s install
+    cd ../../
+}
 
 # Build autoconf-archive
-echo "/*************************************************/"
-echo "/*** Downloading and building autoconf-archive ***/"
-echo "/*************************************************/"
-VERSION="2021.02.19"
-URL="https://ftp.gnu.org/gnu/autoconf-archive/autoconf-archive-${VERSION}.tar.xz"
-cd external
-curl -sLO ${URL}
-tar -xf autoconf-archive-${VERSION}.tar.xz
-cd autoconf-archive-${VERSION}
-apply_configure_envs
-./configure --prefix=${INSTALL_DIR}
-make -s -j$(nproc)
-make -s install
-cd ../../
+build_autoconf_archive() {
+    echo "/*************************************************/"
+    echo "/*** Downloading and building autoconf-archive ***/"
+    echo "/*************************************************/"
+    VERSION="2021.02.19"
+    URL="https://ftp.gnu.org/gnu/autoconf-archive/autoconf-archive-${VERSION}.tar.xz"
+    cd external
+    curl -sLO ${URL}
+    tar -xf autoconf-archive-${VERSION}.tar.xz
+    cd autoconf-archive-${VERSION}
+    apply_configure_envs
+    ./configure --prefix=${INSTALL_DIR}
+    make -s -j$(nproc)
+    make -s install
+    cd ../../
+}
 
 # Build automake
-echo "/*****************************************/"
-echo "/*** Downloading and building automake ***/"
-echo "/*****************************************/"
-VERSION="1.16.5"
-URL="https://ftp.gnu.org/gnu/automake/automake-${VERSION}.tar.xz"
-cd external
-curl -sLO ${URL}
-tar -xf automake-${VERSION}.tar.xz
-cd automake-${VERSION}
-apply_configure_envs
-./configure --prefix=${INSTALL_DIR}
-make -s -j$(nproc)
-make -s install
-cd ../../
+build_automake() {
+    echo "/*****************************************/"
+    echo "/*** Downloading and building automake ***/"
+    echo "/*****************************************/"
+    VERSION="1.16.5"
+    URL="https://ftp.gnu.org/gnu/automake/automake-${VERSION}.tar.xz"
+    cd external
+    curl -sLO ${URL}
+    tar -xf automake-${VERSION}.tar.xz
+    cd automake-${VERSION}
+    apply_configure_envs
+    ./configure --prefix=${INSTALL_DIR}
+    make -s -j$(nproc)
+    make -s install
+    cd ../../
+}
 
 # Build libtool
-echo "/****************************************/"
-echo "/*** Downloading and building libtool ***/"
-echo "/****************************************/"
+build_libtool() {
+    echo "/****************************************/"
+    echo "/*** Downloading and building libtool ***/"
+    echo "/****************************************/"
 
-VERSION="2.4.6"
-URL="https://ftp.gnu.org/gnu/libtool/libtool-${VERSION}.tar.xz"
-cd external
-curl -sLO ${URL}
-tar -xf libtool-${VERSION}.tar.xz
-cd libtool-${VERSION}
-apply_configure_envs
-./configure --prefix=${INSTALL_DIR} --enable-ltdl-install --enable-shared=no --enable-static=yes
-make -s -j$(nproc)
-make -s install
-cd ../../
+    VERSION="2.4.6"
+    URL="https://ftp.gnu.org/gnu/libtool/libtool-${VERSION}.tar.xz"
+    cd external
+    curl -sLO ${URL}
+    tar -xf libtool-${VERSION}.tar.xz
+    cd libtool-${VERSION}
+    apply_configure_envs
+    ./configure --prefix=${INSTALL_DIR} --enable-ltdl-install --enable-shared=no --enable-static=yes
+    make -s -j$(nproc)
+    make -s install
+    cd ../../
+}
 
 # Build libunwind
-echo "/******************************************/"
-echo "/*** Downloading and building libunwind ***/"
-echo "/******************************************/"
+build_libunwind() {
+    echo "/******************************************/"
+    echo "/*** Downloading and building libunwind ***/"
+    echo "/******************************************/"
 
-VERSION="1.5.0"
-URL="http://download.savannah.nongnu.org/releases/libunwind/libunwind-${VERSION}.tar.gz"
-cd external
-curl -sLO ${URL}
-tar -xzf libunwind-${VERSION}.tar.gz
-cd libunwind-${VERSION}
-apply_configure_envs
-./configure --prefix=${INSTALL_DIR} --disable-minidebuginfo --disable-shared --enable-static
-make -s -j$(nproc)
-make -s install
-cd ../../
+    VERSION="1.5.0"
+    URL="http://download.savannah.nongnu.org/releases/libunwind/libunwind-${VERSION}.tar.gz"
+    cd external
+    curl -sLO ${URL}
+    tar -xzf libunwind-${VERSION}.tar.gz
+    cd libunwind-${VERSION}
+    apply_configure_envs
+    ./configure --prefix=${INSTALL_DIR} --disable-minidebuginfo --disable-shared --enable-static
+    make -s -j$(nproc)
+    make -s install
+    cd ../../
+}
 
 # Build fmt
-echo "/************************/"
-echo "/*** Building fmt ***/"
-echo "/************************/"
-cd external/fmt
-mkdir -p build
-cd build
-cmake -DCMAKE_BUILD_TYPE=Release "${common_cmake_args[@]}" -DBUILD_TESTS=OFF -DFMT_TEST=OFF -DFMT_FUZZ=OFF -DFMT_INSTALL=ON ..
-make -s -j$(nproc)
-make -s install
-cd ../../..
+build_fmt() {
+    echo "/************************/"
+    echo "/*** Building fmt ***/"
+    echo "/************************/"
+    cd external/fmt
+    mkdir -p build
+    cd build
+    cmake -DCMAKE_BUILD_TYPE=Release "${common_cmake_args[@]}" -DBUILD_TESTS=OFF -DFMT_TEST=OFF -DFMT_FUZZ=OFF -DFMT_INSTALL=ON ..
+    make -s -j$(nproc)
+    make -s install
+    cd ../../..
+}
 
 # Build gflags
-echo "/************************/"
-echo "/*** Building gflags ***/"
-echo "/************************/"
-cd external/gflags
-mkdir -p build
-cd build
-cmake -DCMAKE_BUILD_TYPE=Release "${common_cmake_args[@]}" -DBUILD_SHARED_LIBS=OFF ..
-make -s -j$(nproc)
-make -s install
-cd ../../..
+build_gflags() {
+    echo "/************************/"
+    echo "/*** Building gflags ***/"
+    echo "/************************/"
+    cd external/gflags
+    mkdir -p build
+    cd build
+    cmake -DCMAKE_BUILD_TYPE=Release "${common_cmake_args[@]}" -DBUILD_SHARED_LIBS=OFF ..
+    make -s -j$(nproc)
+    make -s install
+    cd ../../..
+}
 
 
 # Build glog
-echo "/**********************/"
-echo "/*** Building glog ***/"
-echo "/*********************/"
-cd external/glog
-mkdir -p build
-cd build
-cmake -DCMAKE_BUILD_TYPE=Release "${common_cmake_args[@]}" -DBUILD_SHARED_LIBS=OFF ..
-make -s -j$(nproc)
-make -s install
-cd ../../..
+build_glog() {
+    echo "/**********************/"
+    echo "/*** Building glog ***/"
+    echo "/*********************/"
+    cd external/glog
+    mkdir -p build
+    cd build
+    cmake -DCMAKE_BUILD_TYPE=Release "${common_cmake_args[@]}" -DBUILD_SHARED_LIBS=OFF ..
+    make -s -j$(nproc)
+    make -s install
+    cd ../../..
+}
+
+# Build gtest
+build_gtest() {
+    echo "/**********************/"
+    echo "/*** Building gtest ***/"
+    echo "/*********************/"
+    cd external/gtest
+    mkdir -p build
+    cd build
+    cmake -DCMAKE_BUILD_TYPE=Release "${common_cmake_args[@]}" -DBUILD_SHARED_LIBS=OFF ..
+    make -s -j$(nproc)
+    make -s install
+    cd ../../..
+}
+
+# Parse command line arguments
+build_all=false
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        --autoconf) build_autoconf ;;
+        --autoconf-archive) build_autoconf_archive ;;
+        --automake) build_automake ;;
+        --libtool) build_libtool ;;
+        --libunwind) build_libunwind ;;
+        --fmt) build_fmt ;;
+        --gflags) build_gflags ;;
+        --glog) build_glog ;;
+        --gtest) build_gtest ;;
+        --all) build_all=true ;;
+        *) echo "Unknown parameter passed: $1"; exit 1 ;;
+    esac
+    shift
+done
+
+if [ "$build_all" = true ] ; then
+    build_autoconf
+    build_autoconf_archive
+    build_automake
+    build_libtool
+    build_libunwind
+    build_fmt
+    build_gflags
+    build_glog
+fi
+
 
 
 echo "Build complete."
