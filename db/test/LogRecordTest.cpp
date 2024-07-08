@@ -20,14 +20,11 @@ class LogRecordTest : public ::testing::Test {
 TEST_F(LogRecordTest, ConstructorTest) {
   int32_t key = 1234;
   std::string value = "test_value";
-  uint16_t valueSize = static_cast<uint16_t>(value.size());
-
-  LogRecord::LogType logType = LogRecord::LogType::WRITE;
+  LogType logType = LogRecord::LogType::WRITE;
 
   LogRecord record(key, value, logType);
 
   // Check if the CRC is correctly calculated
-  
 
   record.encode();
   EXPECT_EQ(1, true);

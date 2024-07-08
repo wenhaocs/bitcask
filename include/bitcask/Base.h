@@ -1,6 +1,7 @@
 #ifndef BITCASK_BASE_H_
 #define BITCASK_BASE_H_
 
+#include <arpa/inet.h>
 #include <fcntl.h>
 #include <fmt/core.h>
 #include <sys/stat.h>
@@ -22,6 +23,7 @@
 #include <deque>
 #include <fstream>
 #include <functional>
+#include <iomanip>
 #include <iostream>
 #include <limits>
 #include <list>

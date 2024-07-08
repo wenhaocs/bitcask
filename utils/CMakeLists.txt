@@ -3,6 +3,7 @@ add_library(utils_obj OBJECT
     NamedThread.cpp
     TscHelper.cpp
     WallClock.cpp
+    Helper.cpp
 )
 
 target_include_directories(utils_obj

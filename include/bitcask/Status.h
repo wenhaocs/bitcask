@@ -94,11 +94,12 @@ class Status final {
   enum Code : uint16_t {
     // OK
     kOk = 0,
-    kInserted = 1,
-    // 1xx, for general errors
-    kError = 101,
+    // 1xx, for data file errors
+    kOpenFileError = 101,
     kNoSuchFile = 102,
-    kNotSupported = 103,
+    // kNotSupported = 103,
+
+    kError = 999,
   };
 
   Code code() const {
@@ -112,6 +113,10 @@ class Status final {
     if (state_ == nullptr) return "";
     return std::string(&state_[kHeaderSize], size());
   };
+
+  static Status ERROR(Code code, std::string msg) {
+    return Status(code, msg);
+  }
 
  private:
   // REQUIRES: stat_ != nullptr
@@ -147,14 +152,10 @@ class Status final {
     switch (code) {
       case kOk:
         return "OK";
-      case kInserted:
-        return "Inserted: ";
-      case kError:
-        return "";
+      case kOpenFileError:
+        return "Cannot open file: ";
       case kNoSuchFile:
-        return "NoSuchFile: ";
-      case kNotSupported:
-        return "NotSupported: ";
+        return "No such file: ";
     }
     DLOG(FATAL) << "Invalid status code: " << static_cast<uint16_t>(code);
     return "";
