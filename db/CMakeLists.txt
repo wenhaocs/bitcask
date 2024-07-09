@@ -2,6 +2,7 @@ add_library(db_obj OBJECT
     DBImpl.cpp
     LogRecord.cpp
     DataFile.cpp
+    HashIndex.cpp
 )
 
 # Include directories for the bitcask library

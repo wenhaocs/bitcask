@@ -94,10 +94,10 @@ class Status final {
   enum Code : uint16_t {
     // OK
     kOk = 0,
-    // 1xx, for data file errors
+
     kOpenFileError = 101,
     kNoSuchFile = 102,
-    // kNotSupported = 103,
+    kNotFound = 103,
 
     kError = 999,
   };
@@ -156,6 +156,8 @@ class Status final {
         return "Cannot open file: ";
       case kNoSuchFile:
         return "No such file: ";
+      case kNotFound:
+        return "Not found: ";
     }
     DLOG(FATAL) << "Invalid status code: " << static_cast<uint16_t>(code);
     return "";
