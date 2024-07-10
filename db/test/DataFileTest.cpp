@@ -8,13 +8,11 @@ namespace bitcask {
 class DataFileTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    // Setup code if needed
     // FLAGS_v = 4;
     std::filesystem::create_directories("/tmp/DataFileTest");
   }
 
   void TearDown() override {
-    // Cleanup code if needed
     std::filesystem::remove_all("/tmp/DataFileTest");
   }
 };

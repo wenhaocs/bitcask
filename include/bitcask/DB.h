@@ -4,6 +4,7 @@
 #include "bitcask/Base.h"
 #include "bitcask/Options.h"
 #include "bitcask/StatusOr.h"
+#include "bitcask/Types.h"
 
 namespace bitcask {
 
@@ -34,7 +35,7 @@ class DB {
   virtual StatusOr<std::string> get(const std::string& key) = 0;
 
   // Store a key and value in a Bitcask datastore.
-  virtual Status put(const std::string& key, const std::string& value) = 0;
+  virtual Status put(const KeyType& key, const std::string& value) = 0;
 
   // Delete a key from a Bitcask datastore
   virtual Status deleteKey(const std::string& key) = 0;

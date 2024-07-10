@@ -22,7 +22,7 @@ class DBImpl : public DB {
   StatusOr<std::string> get(const std::string& key) override;
 
   // Store a key and value in a Bitcask datastore.
-  Status put(const std::string& key, const std::string& value) override;
+  Status put(const KeyType& key, const std::string& value) override;
 
   // Delete a key from a Bitcask datastore
   Status deleteKey(const std::string& key) override;

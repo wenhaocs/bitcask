@@ -51,7 +51,6 @@ StatusOr<std::unique_ptr<LogRecord>> DataFile::readLogRecord(int64_t pos) {
   char headerBuf[kLogHeaderSize];
   auto status = readNBytes(pos, kLogHeaderSize, headerBuf);
   if (!status.ok()) {
-    LOG(ERROR) << status.message();
     return status;
   }
   auto header = LogRecord::decodeLogRecordHeader(headerBuf);
@@ -67,7 +66,6 @@ StatusOr<std::unique_ptr<LogRecord>> DataFile::readLogRecord(int64_t pos) {
   char kvBuf[header->keySize_ + header->valueSize_];
   status = readNBytes(pos + kLogHeaderSize, header->keySize_ + header->valueSize_, kvBuf);
   if (!status.ok()) {
-    LOG(ERROR) << status.message();
     return status;
   }
 
@@ -95,9 +93,20 @@ StatusOr<std::unique_ptr<LogRecord>> DataFile::readLogRecord(int64_t pos) {
 }
 
 Status DataFile::readNBytes(int64_t offset, int64_t size, char* buf) {
-  auto bytesRead = pread(fd_, buf, size, offset);
-  if (bytesRead != size) {
-    return Status::ERROR(Status::Code::kError, "Read failure: " + std::string(strerror(errno)));
+  size_t totalRead = 0;
+  while (totalRead < size) {
+    auto bytesRead = pread(fd_, buf + totalRead, size - totalRead, offset + totalRead);
+    if (bytesRead == -1) {
+      if (errno == EINTR) {
+        continue;
+      } else {
+        FLOG_ERROR("Read failure: {}", std::string(strerror(errno)));
+        return Status::ERROR(Status::Code::kError, "Read failure: " + std::string(strerror(errno)));
+      }
+    } else if (bytesRead == 0) {
+      return Status::ERROR(Status::Code::kEOF, "EOF");
+    }
+    totalRead += bytesRead;
   }
 
   FVLOG3("reading {} bytes from {}: {}", size, offset, hexify(buf, size));

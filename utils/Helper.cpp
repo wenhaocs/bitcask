@@ -24,11 +24,13 @@ bool directoryExists(const std::string& path) {
 bool createDirectory(const std::string& path) {
   std::istringstream pathStream(path);
   std::string partialPath = "";
+  std::string currentPath = "";
   while (std::getline(pathStream, partialPath, '/')) {
     if (!partialPath.empty()) {
-      partialPath = "/" + partialPath;
-      if (!directoryExists(partialPath)) {
-        if (mkdir(partialPath.c_str(), 0755) != 0 && errno != EEXIST) {
+      currentPath = currentPath + "/" + partialPath;
+      if (!directoryExists(currentPath)) {
+        FVLOG2("Creating dir: {}", currentPath);
+        if (mkdir(currentPath.c_str(), 0755) != 0 && errno != EEXIST) {
           return false;
         }
       }

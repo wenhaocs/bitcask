@@ -65,3 +65,25 @@ target_link_libraries(hash_index_test $<TARGET_OBJECTS:db_obj> $<TARGET_OBJECTS:
 
 # Add a test to CTest
 add_test(NAME hash_index_test COMMAND hash_index_test)
+
+
+# db impl test
+add_executable(db_impl_test DBImplTest.cpp)
+set_target_properties(
+    db_impl_test
+        PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/test
+)
+
+# Include directories for the test executable
+target_include_directories(db_impl_test
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+        ${PROJECT_SOURCE_DIR}/db
+        ${PROJECT_SOURCE_DIR}/utils
+)
+
+# Link libraries to the test executable
+target_link_libraries(db_impl_test $<TARGET_OBJECTS:db_obj> $<TARGET_OBJECTS:utils_obj> gtest gtest_main fmt glog gflags ${LIBUNWIND_LIBRARIES} pthread)
+
+# Add a test to CTest
+add_test(NAME db_impl_test COMMAND db_impl_test)

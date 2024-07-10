@@ -41,10 +41,15 @@ DBImpl::~DBImpl() {
 
 StatusOr<std::unique_ptr<DB>> DB::open(const std::string& dbname, const Options& options) {
   // check options
+  if (options.readOnly) {
+    FLOG_INFO("Trying to open db in read only mode...");
+  } else {
+    FLOG_INFO("Trying to open db in rw mode...");
+  }
 
   if (!directoryExists(dbname)) {
     if (!createDirectory(dbname)) {
-      FLOG_ERROR("Failed to create db path: {}", std::string(strerror(errno)));
+      FLOG_ERROR("Failed to create db path {}: {}", dbname, std::string(strerror(errno)));
       return Status::ERROR(Status::Code::kError, std::string(strerror(errno)));
     }
   }
@@ -53,22 +58,30 @@ StatusOr<std::unique_ptr<DB>> DB::open(const std::string& dbname, const Options&
 
   // Try to lock the lock file. Is it's already acquired by another process, refuse to open.
   if (!options.readOnly) {
+    FLOG_INFO("Locking db...");
     dbImpl->fileLock_ = std::make_unique<FileLock>(dbImpl->fileLockName_);
     auto status = dbImpl->fileLock_->tryLock();
     if (!status.ok()) {
       return status;
     }
+    FLOG_INFO("DB locked successfully");
   }
 
   // TODO: Replay WAL
 
   // load active data file
+  FLOG_INFO("Loading active data file...");
   auto status = dbImpl->openActiveDataFile();
   if (!status.ok()) {
     return status;
   }
 
   // Load index from data files
+  FLOG_INFO("Constructing index...");
+  status = dbImpl->constructIndex();
+  if (!status.ok()) {
+    return status;
+  }
 
   return dbImpl;
 }
@@ -84,7 +97,7 @@ StatusOr<std::string> DBImpl::get(const std::string& key) {
 // Store a key and value in a Bitcask datastore.
 // Note that the on disk part is written first then the in memory index. There is no need of
 // additional WAL.
-Status DBImpl::put(const std::string& key, const std::string& value) {
+Status DBImpl::put(const KeyType& key, const std::string& value) {
   UNUSED(key);
   UNUSED(value);
 
@@ -167,8 +180,9 @@ Status DBImpl::openActiveDataFile() {
   // Find the largest file ID
   FileID activeFileId;
   if (!allFileIDs_.empty()) {
-    auto activeFileId = *std::max_element(allFileIDs_.begin(), allFileIDs_.end());
+    activeFileId = *std::max_element(allFileIDs_.begin(), allFileIDs_.end());
   } else {
+    FLOG_INFO("New database!");
     // It's a new database.
     if (options_.readOnly) {
       FLOG_ERROR("Open in read only mode but there are no data files.");
@@ -176,11 +190,12 @@ Status DBImpl::openActiveDataFile() {
     } else {
       // Create the first data file.
       activeFileId = 1;
+      allFileIDs_.emplace_back(activeFileId);
     }
   }
 
-  auto activeFilePath = dbname_ + "/" + std::to_string(activeFileId) + ".data";
-  auto activeFile_ = std::make_unique<DataFile>(activeFilePath, activeFileId, options_.readOnly);
+  FLOG_INFO("Active file id: {}", activeFileId);
+  auto activeFile_ = std::make_unique<DataFile>(dbname_, activeFileId, options_.readOnly);
   auto status = activeFile_->openDataFile();
   if (!status.ok()) {
     return status;
@@ -193,8 +208,7 @@ Status DBImpl::constructIndex() {
   index_ = std::make_unique<HashIndex>(100);
 
   for (const auto& fileId : allFileIDs_) {
-    auto path = dbname_ + "/" + std::to_string(fileId) + ".data";
-    auto dataFile = std::make_unique<DataFile>(path, fileId, true);
+    auto dataFile = std::make_unique<DataFile>(dbname_, fileId, true);
     auto status = dataFile->openDataFile();
     if (!status.ok()) {
       return status;
