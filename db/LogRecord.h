@@ -39,6 +39,8 @@ class LogRecord {
 
   LogRecord(const int32_t& key, const std::string& value, const LogType logType);
 
+  explicit LogRecord(const LogRecordHeader& header);
+
   void encode();
 
   char* getEncodedBuffer() {
@@ -59,8 +61,12 @@ class LogRecord {
     return totalSize_;
   }
 
-  void setHeader(LogRecordHeader&& header) {
-    header_ = std::move(header);
+  uint16_t getValueSize() {
+    return header_.valueSize_;
+  }
+
+  int64_t getTimeStamp() {
+    return header_.tstamp_;
   }
 
   void loadKVFromBuf(const char* kvBuf, int32_t keySize, int32_t valueSize);

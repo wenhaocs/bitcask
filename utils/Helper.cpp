@@ -10,4 +10,31 @@ std::string hexify(const char* buffer, size_t length) {
   return oss.str();
 }
 
+bool directoryExists(const std::string& path) {
+  struct stat info;
+  if (stat(path.c_str(), &info) != 0) {
+    return false;
+  } else if (info.st_mode & S_IFDIR) {
+    return true;
+  } else {
+    return false;
+  }
 }
+
+bool createDirectory(const std::string& path) {
+  std::istringstream pathStream(path);
+  std::string partialPath = "";
+  while (std::getline(pathStream, partialPath, '/')) {
+    if (!partialPath.empty()) {
+      partialPath = "/" + partialPath;
+      if (!directoryExists(partialPath)) {
+        if (mkdir(partialPath.c_str(), 0755) != 0 && errno != EEXIST) {
+          return false;
+        }
+      }
+    }
+  }
+  return true;
+}
+
+}  // namespace bitcask

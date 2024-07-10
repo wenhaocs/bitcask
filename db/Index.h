@@ -8,12 +8,12 @@
 namespace bitcask {
 
 struct LogPos {
-  uint32_t fileId_{0};
+  FileID fileId_{0};
   uint16_t valueSize_{0};
   int64_t pos_{0};
   int64_t tstamp_;
 
-  LogPos(uint32_t fileId, uint16_t valueSize, int64_t pos, int64_t tstamp)
+  LogPos(const FileID& fileId, const uint16_t& valueSize, const int64_t& pos, const int64_t& tstamp)
       : fileId_(fileId), valueSize_(valueSize), pos_(pos), tstamp_(tstamp) {}
 };
 

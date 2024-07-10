@@ -3,6 +3,9 @@
 
 #include "bitcask/Base.h"
 #include "bitcask/DB.h"
+#include "db/DataFile.h"
+#include "db/FileLock.h"
+#include "db/Index.h"
 
 namespace bitcask {
 
@@ -37,10 +40,20 @@ class DBImpl : public DB {
   Status close() override;
 
  private:
+  Status openActiveDataFile();
+  Status constructIndex();
+
+  std::vector<FileID> allFileIDs_;
+  std::unique_ptr<FileLock> fileLock_{nullptr};
+  std::unique_ptr<DataFile> activeFile_{nullptr};
+  std::unique_ptr<Index> index_{nullptr};
+
   friend class DB;
 
   const Options options_;
   const std::string dbname_;
+
+  const std::string fileLockName_ = "LOCK";
 };
 
 }  // namespace bitcask

@@ -1,5 +1,9 @@
 #include "db/DBImpl.h"
 
+#include "bitcask/Types.h"
+#include "db/HashIndex.h"
+#include "utils/Helper.h"
+
 namespace bitcask {
 
 DBImpl::DBImpl(const std::string& dbname, const Options& options)
@@ -32,18 +36,41 @@ DBImpl::~DBImpl() {
   //   if (owns_cache_) {
   //     delete options_.block_cache;
   //   }
-  LOG(INFO) << "exiit DBImpl";
+  LOG(INFO) << "exit DBImpl";
 }
 
 StatusOr<std::unique_ptr<DB>> DB::open(const std::string& dbname, const Options& options) {
-  auto db = std::make_unique<DBImpl>(dbname, options);
-  // Try to lock the lock file. Is it's already acquired by another process, refuse to open.
+  // check options
 
-  // Replay WAL
+  if (!directoryExists(dbname)) {
+    if (!createDirectory(dbname)) {
+      FLOG_ERROR("Failed to create db path: {}", std::string(strerror(errno)));
+      return Status::ERROR(Status::Code::kError, std::string(strerror(errno)));
+    }
+  }
+
+  auto dbImpl = std::make_unique<DBImpl>(dbname, options);
+
+  // Try to lock the lock file. Is it's already acquired by another process, refuse to open.
+  if (!options.readOnly) {
+    dbImpl->fileLock_ = std::make_unique<FileLock>(dbImpl->fileLockName_);
+    auto status = dbImpl->fileLock_->tryLock();
+    if (!status.ok()) {
+      return status;
+    }
+  }
+
+  // TODO: Replay WAL
+
+  // load active data file
+  auto status = dbImpl->openActiveDataFile();
+  if (!status.ok()) {
+    return status;
+  }
 
   // Load index from data files
 
-  return db;
+  return dbImpl;
 }
 
 // Retrieve a value by key from a Bitcask datastore
@@ -117,4 +144,84 @@ Status DBImpl::close() {
 
 DB::~DB() = default;
 
+Status DBImpl::openActiveDataFile() {
+  // Iterate through the directory
+  for (const auto& entry : std::filesystem::directory_iterator(dbname_)) {
+    if (entry.is_regular_file()) {
+      auto path = entry.path();
+      if (path.extension() == ".data") {
+        // Extract file ID from filename
+        std::string filename = path.stem().string();
+        try {
+          FileID fileId = std::stoul(filename);
+          allFileIDs_.emplace_back(std::move(fileId));
+        } catch (const std::invalid_argument& e) {
+          // Handle invalid filenames that can't be converted to a number
+          FLOG_ERROR("Invalid filename: {}", filename);
+          return Status::ERROR(Status::Code::kError, "Invalid filename: " + filename);
+        }
+      }
+    }
+  }
+
+  // Find the largest file ID
+  FileID activeFileId;
+  if (!allFileIDs_.empty()) {
+    auto activeFileId = *std::max_element(allFileIDs_.begin(), allFileIDs_.end());
+  } else {
+    // It's a new database.
+    if (options_.readOnly) {
+      FLOG_ERROR("Open in read only mode but there are no data files.");
+      return Status::ERROR(Status::Code::kError, "Empty data file.");
+    } else {
+      // Create the first data file.
+      activeFileId = 1;
+    }
+  }
+
+  auto activeFilePath = dbname_ + "/" + std::to_string(activeFileId) + ".data";
+  auto activeFile_ = std::make_unique<DataFile>(activeFilePath, activeFileId, options_.readOnly);
+  auto status = activeFile_->openDataFile();
+  if (!status.ok()) {
+    return status;
+  }
+
+  return Status::OK();
+}
+
+Status DBImpl::constructIndex() {
+  index_ = std::make_unique<HashIndex>(100);
+
+  for (const auto& fileId : allFileIDs_) {
+    auto path = dbname_ + "/" + std::to_string(fileId) + ".data";
+    auto dataFile = std::make_unique<DataFile>(path, fileId, true);
+    auto status = dataFile->openDataFile();
+    if (!status.ok()) {
+      return status;
+    }
+
+    int64_t pos = 0;
+    while (true) {
+      auto result = dataFile->readLogRecord(pos);
+      if (!result.ok()) {
+        if (result.status().code() == Status::Code::kEOF) {
+          break;  // End of file reached
+        }
+        return result.status();
+      }
+
+      auto logRecord = std::move(result.value());
+      auto key = logRecord->getKey();
+      auto logPos = std::make_shared<LogPos>(
+          fileId, logRecord->getValueSize(), pos, logRecord->getTimeStamp());
+      index_->put(key, std::move(logPos));
+
+      pos += logRecord->getTotalSize();
+    }
+
+    dataFile->closeDataFile();
+  }
+
+  return Status::OK();
+}
 }  // namespace bitcask

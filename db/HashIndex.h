@@ -5,7 +5,7 @@
 
 namespace bitcask {
 
-class HashIndex : Index {
+class HashIndex : public Index {
  public:
   HashIndex() = default;
   ~HashIndex() = default;
@@ -17,6 +17,8 @@ class HashIndex : Index {
   StatusOr<std::shared_ptr<LogPos>> get(const KeyType& key) override;
 
   Status remove(const KeyType& key) override;
+
+  HashIndex& operator=(const HashIndex&) = delete;
 
  private:
   // since it's in memory structure, we can keep using the ponter and share the ownership to reduce

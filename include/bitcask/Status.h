@@ -98,6 +98,9 @@ class Status final {
     kOpenFileError = 101,
     kNoSuchFile = 102,
     kNotFound = 103,
+    kEOF = 104,
+
+    kDBUsed = 201,
 
     kError = 999,
   };
@@ -158,6 +161,12 @@ class Status final {
         return "No such file: ";
       case kNotFound:
         return "Not found: ";
+      case kEOF:
+        return "EOF: ";
+      case kDBUsed:
+        return "DB is used: ";
+      case kError:
+        return "Error: ";
     }
     DLOG(FATAL) << "Invalid status code: " << static_cast<uint16_t>(code);
     return "";

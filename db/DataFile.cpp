@@ -6,7 +6,7 @@
 namespace bitcask {
 
 DataFile::DataFile(const std::string dirPath, const uint32_t fileId, bool readOnly) {
-  fileName_ = fmt::format("{}/{}", dirPath, fileId);
+  fileName_ = fmt::format("{}/{}.data", dirPath, fileId);
   curWriteOffset_ = 0;
   readOnly_ = readOnly;
 }
@@ -20,6 +20,7 @@ Status DataFile::openDataFile() {
     fd_ = open(fileName_.c_str(), O_CREAT | O_RDWR | O_APPEND, 0644);
     off_t fileSize = lseek(fd_, 0, SEEK_END);
     if (fileSize == (off_t)-1) {
+      FLOG_ERROR("open data file error: {}", std::string(strerror(errno)));
       return Status::ERROR(Status::Code::kOpenFileError,
                            "Error seeking file: " + std::string(strerror(errno)));
     }
@@ -27,6 +28,7 @@ Status DataFile::openDataFile() {
   }
 
   if (fd_ == -1) {
+    FLOG_ERROR("open data file error: {}", std::string(strerror(errno)));
     return Status::ERROR(Status::Code::kOpenFileError,
                          "Error opening file: " + std::string(strerror(errno)));
   } else {
@@ -71,24 +73,23 @@ StatusOr<std::unique_ptr<LogRecord>> DataFile::readLogRecord(int64_t pos) {
 
   FVLOG3("kv buf read: {}", hexify(kvBuf, sizeof(kvBuf)));
 
-  auto logRecord = std::make_unique<LogRecord>();
+  auto logRecord = std::make_unique<LogRecord>(*header);
   logRecord->loadKVFromBuf(kvBuf, header->keySize_, header->valueSize_);
 
   // Reconstruct the encoded data for CRC calculation
-  size_t totalSize = kLogHeaderSize - sizeof(header->crc_) + header->keySize_ + header->valueSize_;
-  char data[totalSize];
+  size_t sizeWithoutCRC =
+      kLogHeaderSize - sizeof(header->crc_) + header->keySize_ + header->valueSize_;
+  char data[sizeWithoutCRC];
   std::memcpy(data, headerBuf + sizeof(header->crc_), kLogHeaderSize - sizeof(header->crc_));
   std::memcpy(
       data + kLogHeaderSize - sizeof(header->crc_), kvBuf, header->keySize_ + header->valueSize_);
 
-  uint32_t calculatedCRC = crc::crc32(data, totalSize);
+  uint32_t calculatedCRC = crc::crc32(data, sizeWithoutCRC);
   if (calculatedCRC != header->crc_) {
     FLOG_ERROR(
         "CRC validation failed. Crc of read data: {}. Should be {}.", calculatedCRC, header->crc_);
     return Status::ERROR(Status::Code::kError, "CRC validation failed");
   }
-
-  logRecord->setHeader(std::move(*header));
 
   return logRecord;
 }

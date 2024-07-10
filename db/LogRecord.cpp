@@ -18,11 +18,13 @@ LogRecord::LogRecord(const int32_t& key, const std::string& value, const LogType
 
   key_ = key;
   value_ = value;
+  totalSize_ = kLogHeaderSize + sizeof(key_) + value_.size();
 }
+
+LogRecord::LogRecord(const LogRecordHeader& header) : header_(header) {}
 
 void LogRecord::encode() {
   // total size is awalys set together with buf_
-  totalSize_ = kLogHeaderSize + sizeof(key_) + value_.size();
   buf_ = reinterpret_cast<char*>(malloc(totalSize_));
   // Encode the key, value, timestamp, logType into buf_ for CRC calculation
   int index = 0;
@@ -76,6 +78,7 @@ std::unique_ptr<LogRecordHeader> LogRecord::decodeLogRecordHeader(char* buf) {
 void LogRecord::loadKVFromBuf(const char* kvBuf, int32_t keySize, int32_t valueSize) {
   std::memcpy(&key_, kvBuf, keySize);
   value_.assign(kvBuf + keySize, valueSize);
+  totalSize_ = kLogHeaderSize + keySize + valueSize;
   FVLOG2("Set kv from buf. key: {}, value: {}", key_, value_);
 }
 
