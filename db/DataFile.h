@@ -19,14 +19,20 @@ class DataFile {
   Status closeDataFile();
 
   // read a LogRecord from datafile
-  StatusOr<std::unique_ptr<LogRecord>> readLogRecord(int64_t pos);
+  StatusOr<std::unique_ptr<LogRecord>> readLogRecord(FileOffset pos);
+
+  // read a LogRecord from datafile with knowledge of value size
+  StatusOr<std::unique_ptr<LogRecord>> readLogRecord(FileOffset pos, uint16_t valueSize);
 
   // encode the log and write the buffer to datafile
   // return the position of this log record
-  StatusOr<int64_t> writeLogRecord(std::unique_ptr<LogRecord> log);
+  StatusOr<FileOffset> writeLogRecord(std::unique_ptr<LogRecord>&& log);
 
   // force the filesystem to sync all writes from buffer cache to disk
   Status flush();
+
+  // get the current data file size
+  int64_t getCurrentFileSize();
 
   DataFile& operator=(const DataFile&) = delete;
 
@@ -46,6 +52,8 @@ class DataFile {
   bool readOnly_{false};
   // OS fd when it's open
   int fd_{-1};
+
+  mutable std::shared_mutex fileMutex_;  // for data file
 };
 
 }  // namespace bitcask

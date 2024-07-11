@@ -10,7 +10,7 @@ namespace bitcask {
 struct LogPos {
   FileID fileId_{0};
   uint16_t valueSize_{0};
-  int64_t pos_{0};
+  FileOffset pos_{0};
   int64_t tstamp_;
 
   LogPos(const FileID& fileId, const uint16_t& valueSize, const int64_t& pos, const int64_t& tstamp)
@@ -25,6 +25,8 @@ class Index {
   virtual StatusOr<std::shared_ptr<LogPos>> get(const KeyType& key) = 0;
 
   virtual Status remove(const KeyType& key) = 0;
+
+  virtual StatusOr<std::vector<KeyType>> listKeys() = 0;
 
   Index& operator=(const Index&) = delete;
 

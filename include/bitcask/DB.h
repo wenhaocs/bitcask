@@ -32,16 +32,16 @@ class DB {
   static StatusOr<std::unique_ptr<DB>> open(const std::string& name, const Options& options);
 
   // Retrieve a value by key from a Bitcask datastore
-  virtual StatusOr<std::string> get(const std::string& key) = 0;
+  virtual StatusOr<std::string> get(const KeyType& key) = 0;
 
   // Store a key and value in a Bitcask datastore.
   virtual Status put(const KeyType& key, const std::string& value) = 0;
 
   // Delete a key from a Bitcask datastore
-  virtual Status deleteKey(const std::string& key) = 0;
+  virtual Status deleteKey(const KeyType& key) = 0;
 
   // List all keys in a Bitcask datastore
-  virtual StatusOr<std::vector<std::string>> listKeys() = 0;
+  virtual StatusOr<std::vector<KeyType>> listKeys() = 0;
 
   // merge the datafiles in the db
   virtual Status merge(const std::string& name) = 0;

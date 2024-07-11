@@ -95,12 +95,18 @@ class Status final {
     // OK
     kOk = 0,
 
+    // file related
     kOpenFileError = 101,
     kNoSuchFile = 102,
     kNotFound = 103,
     kEOF = 104,
 
+    // db related
     kDBUsed = 201,
+    kNotAllowed = 202,
+
+    // kv related
+    kOverLimit = 301,
 
     kError = 999,
   };
@@ -165,6 +171,10 @@ class Status final {
         return "EOF: ";
       case kDBUsed:
         return "DB is used: ";
+      case kNotAllowed:
+        return "Not allowed:";
+      case kOverLimit:
+        return "Over limit: ";
       case kError:
         return "Error: ";
     }

@@ -33,4 +33,14 @@ Status HashIndex::remove(const KeyType& key) {
   }
 }
 
+StatusOr<std::vector<KeyType>> HashIndex::listKeys() {
+  std::shared_lock<std::shared_mutex> lock(mutex_);
+  std::vector<KeyType> keys;
+  keys.reserve(indexMap_.size());
+  for (const auto& pair : indexMap_) {
+    keys.emplace_back(pair.first);
+  }
+  return keys;
+}
+
 }  // namespace bitcask

@@ -1,8 +1,11 @@
 #include "db/DBImpl.h"
 
-#include "bitcask/Types.h"
 #include "db/HashIndex.h"
 #include "utils/Helper.h"
+
+DEFINE_uint64(max_value_size,
+              4096,
+              "Max length for the value string. The max of this value is 65535");
 
 namespace bitcask {
 
@@ -10,32 +13,7 @@ DBImpl::DBImpl(const std::string& dbname, const Options& options)
     : options_(options), dbname_(dbname) {}
 
 DBImpl::~DBImpl() {
-  // Wait for background work to finish.
-  //   mutex_.Lock();
-  //   shutting_down_.store(true, std::memory_order_release);
-  //   while (background_compaction_scheduled_) {
-  //     background_work_finished_signal_.Wait();
-  //   }
-  //   mutex_.Unlock();
-
-  //   if (db_lock_ != nullptr) {
-  //     env_->UnlockFile(db_lock_);
-  //   }
-
-  //   delete versions_;
-  //   if (mem_ != nullptr) mem_->Unref();
-  //   if (imm_ != nullptr) imm_->Unref();
-  //   delete tmp_batch_;
-  //   delete log_;
-  //   delete logfile_;
-  //   delete table_cache_;
-
-  //   if (owns_info_log_) {
-  //     delete options_.info_log;
-  //   }
-  //   if (owns_cache_) {
-  //     delete options_.block_cache;
-  //   }
+  close();
   LOG(INFO) << "exit DBImpl";
 }
 
@@ -71,7 +49,7 @@ StatusOr<std::unique_ptr<DB>> DB::open(const std::string& dbname, const Options&
 
   // load active data file
   FLOG_INFO("Loading active data file...");
-  auto status = dbImpl->openActiveDataFile();
+  auto status = dbImpl->openAllDataFiles();
   if (!status.ok()) {
     return status;
   }
@@ -87,53 +65,96 @@ StatusOr<std::unique_ptr<DB>> DB::open(const std::string& dbname, const Options&
 }
 
 // Retrieve a value by key from a Bitcask datastore
-StatusOr<std::string> DBImpl::get(const std::string& key) {
-  UNUSED(key);
+StatusOr<std::string> DBImpl::get(const KeyType& key) {
   // search the index
+  auto ret = index_->get(key);
+  if (!ret.ok()) {
+    return ret.status();
+  }
+
   // read from disk
-  return "";
+  auto logPos = std::move(ret).value();
+  StatusOr<std::unique_ptr<LogRecord>> logRet;
+  if (logPos->fileId_ == activeFileId_) {
+    logRet = activeFile_->readLogRecord(logPos->pos_, logPos->valueSize_);
+  } else {
+    if (oldDataFiles_.find(logPos->fileId_) == oldDataFiles_.end()) {
+      FLOG_ERROR("Data file not found: {}", logPos->fileId_);
+      return Status::ERROR(Status::Code::kNoSuchFile, "data file not found.");
+    }
+    logRet = oldDataFiles_.at(logPos->fileId_)->readLogRecord(logPos->pos_, logPos->valueSize_);
+  }
+
+  if (!logRet.ok()) {
+    return logRet.status();
+  }
+
+  return std::move(logRet).value()->getValue();
 }
 
 // Store a key and value in a Bitcask datastore.
 // Note that the on disk part is written first then the in memory index. There is no need of
 // additional WAL.
 Status DBImpl::put(const KeyType& key, const std::string& value) {
-  UNUSED(key);
-  UNUSED(value);
+  if (UNLIKELY(options_.readOnly)) {
+    return Status::ERROR(Status::Code::kNotAllowed, "write is not allowd in read only mode");
+  }
+  if (!checkValue(value)) {
+    FLOG_ERROR("Value size over limit. Please check FLAGS_max_value_size");
+    return Status::ERROR(Status::Code::kOverLimit, "Value size over limit.");
+  }
 
-  // Write to WAL
+  // TODO: Write to WAL
 
-  // Construct log record
+  // Write to file first. In case of failure, we can reconstruct index from file.
+  auto logRecord = std::make_unique<LogRecord>(key, value, LogType::WRITE);
+  auto valueSize = logRecord->getValueSize();
+  auto tstamp = logRecord->getTimeStamp();
+  auto ret = appendLogRecord(std::move(logRecord));
+  if (!ret.ok()) {
+    return ret.status();
+  }
 
-  // Append log record
+  auto offset = std::move(ret).value();
 
   // Update index
+  auto logPos = std::make_shared<LogPos>(
+      activeFileId_, std::move(valueSize), std::move(offset), std::move(tstamp));
+  index_->put(key, logPos);
 
   return Status::OK();
 }
 
 // Delete a key from a Bitcask datastore
-Status DBImpl::deleteKey(const std::string& key) {
-  UNUSED(key);
+Status DBImpl::deleteKey(const KeyType& key) {
   // check if key exists
+  auto ret = index_->get(key);
+  if (!ret.ok()) {
+    return ret.status();
+  }
 
-  // Write to WAL
+  // TODO: Write to WAL
 
   // Construct log record
-
-  // Append log record
+  auto logRecord = std::make_unique<LogRecord>(key, "", LogType::DELETE);
+  auto appendRet = appendLogRecord(std::move(logRecord));
+  if (!appendRet.ok()) {
+    return appendRet.status();
+  }
 
   // delete in index
+  index_->remove(key);
 
   return Status::OK();
 }
 
 // List all keys in a Bitcask datastore
-StatusOr<std::vector<std::string>> DBImpl::listKeys() {
-  std::vector<std::string> res;
-
-  // iterate the index
-  return res;
+StatusOr<std::vector<KeyType>> DBImpl::listKeys() {
+  auto ret = index_->listKeys();
+  if (!ret.ok()) {
+    return ret.status();
+  }
+  return std::move(ret).value();
 };
 
 // merge the datafiles in the db
@@ -145,19 +166,19 @@ Status DBImpl::merge(const std::string& name) {
 // Force any writes to sync to disk
 Status DBImpl::sync() {
   // Sync active data file
-  return Status::OK();
+  return activeFile_->flush();
 }
 
 // Close a Bitcask data store and flush all pending writes (if any) to disk.
 Status DBImpl::close() {
-  // sync
-  // unlock the lock file
+  sync();
+  fileLock_->unlock();
   return Status::OK();
 }
 
 DB::~DB() = default;
 
-Status DBImpl::openActiveDataFile() {
+Status DBImpl::openAllDataFiles() {
   // Iterate through the directory
   for (const auto& entry : std::filesystem::directory_iterator(dbname_)) {
     if (entry.is_regular_file()) {
@@ -167,7 +188,7 @@ Status DBImpl::openActiveDataFile() {
         std::string filename = path.stem().string();
         try {
           FileID fileId = std::stoul(filename);
-          allFileIDs_.emplace_back(std::move(fileId));
+          allFileIds_.emplace_back(std::move(fileId));
         } catch (const std::invalid_argument& e) {
           // Handle invalid filenames that can't be converted to a number
           FLOG_ERROR("Invalid filename: {}", filename);
@@ -177,10 +198,29 @@ Status DBImpl::openActiveDataFile() {
     }
   }
 
-  // Find the largest file ID
-  FileID activeFileId;
-  if (!allFileIDs_.empty()) {
-    activeFileId = *std::max_element(allFileIDs_.begin(), allFileIDs_.end());
+  if (!allFileIds_.empty()) {
+    // Find the largest file ID
+    std::sort(allFileIds_.begin(), allFileIds_.end());
+    activeFileId_ = allFileIds_.back();
+
+    FLOG_INFO("Active file id: {}", activeFileId_);
+
+    for (const auto& fileId : allFileIds_) {
+      if (fileId != activeFileId_) {
+        auto oldFile = std::make_unique<DataFile>(dbname_, fileId, true);
+        auto status = oldFile->openDataFile();
+        if (!status.ok()) {
+          return status;
+        }
+        oldDataFiles_.emplace(fileId, std::move(oldFile));
+      } else {
+        activeFile_ = std::make_unique<DataFile>(dbname_, activeFileId_, options_.readOnly);
+        auto status = activeFile_->openDataFile();
+        if (!status.ok()) {
+          return status;
+        }
+      }
+    }
   } else {
     FLOG_INFO("New database!");
     // It's a new database.
@@ -189,16 +229,15 @@ Status DBImpl::openActiveDataFile() {
       return Status::ERROR(Status::Code::kError, "Empty data file.");
     } else {
       // Create the first data file.
-      activeFileId = 1;
-      allFileIDs_.emplace_back(activeFileId);
-    }
-  }
+      activeFileId_ = 1;
+      allFileIds_.emplace_back(activeFileId_);
 
-  FLOG_INFO("Active file id: {}", activeFileId);
-  auto activeFile_ = std::make_unique<DataFile>(dbname_, activeFileId, options_.readOnly);
-  auto status = activeFile_->openDataFile();
-  if (!status.ok()) {
-    return status;
+      activeFile_ = std::make_unique<DataFile>(dbname_, activeFileId_);
+      auto status = activeFile_->openDataFile();
+      if (!status.ok()) {
+        return status;
+      }
+    }
   }
 
   return Status::OK();
@@ -207,16 +246,22 @@ Status DBImpl::openActiveDataFile() {
 Status DBImpl::constructIndex() {
   index_ = std::make_unique<HashIndex>(100);
 
-  for (const auto& fileId : allFileIDs_) {
-    auto dataFile = std::make_unique<DataFile>(dbname_, fileId, true);
-    auto status = dataFile->openDataFile();
-    if (!status.ok()) {
-      return status;
+  for (const auto& fileId : allFileIds_) {
+    DataFile* curDatafile{nullptr};
+    if (fileId == activeFileId_) {
+      curDatafile = activeFile_.get();
+    } else {
+      if (oldDataFiles_.find(fileId) == oldDataFiles_.end()) {
+        FLOG_ERROR("Data file not found: {}", fileId);
+        return Status::ERROR(Status::Code::kNoSuchFile, "data file not found.");
+      }
+      curDatafile = oldDataFiles_.at(fileId).get();
     }
 
     int64_t pos = 0;
     while (true) {
-      auto result = dataFile->readLogRecord(pos);
+      FVLOG2("Loading index from data file {}", fileId);
+      auto result = curDatafile->readLogRecord(pos);
       if (!result.ok()) {
         if (result.status().code() == Status::Code::kEOF) {
           break;  // End of file reached
@@ -226,16 +271,57 @@ Status DBImpl::constructIndex() {
 
       auto logRecord = std::move(result.value());
       auto key = logRecord->getKey();
-      auto logPos = std::make_shared<LogPos>(
-          fileId, logRecord->getValueSize(), pos, logRecord->getTimeStamp());
-      index_->put(key, std::move(logPos));
+
+      if (logRecord->getLogType() == LogType::WRITE) {
+        auto logPos = std::make_shared<LogPos>(
+            fileId, logRecord->getValueSize(), pos, logRecord->getTimeStamp());
+        index_->put(key, std::move(logPos));
+      } else {
+        index_->remove(key);
+      }
 
       pos += logRecord->getTotalSize();
     }
-
-    dataFile->closeDataFile();
   }
 
   return Status::OK();
+}
+
+StatusOr<FileOffset> DBImpl::appendLogRecord(std::unique_ptr<LogRecord>&& logRecord) {
+  {
+    std::unique_lock lock(mutex_);
+    if (activeFile_->getCurrentFileSize() + logRecord->getTotalSize() > options_.maxFileSize) {
+      // roll out a new data file
+      activeFile_->flush();
+      activeFile_->closeDataFile();
+
+      // reopen this data file as read only mode and append to old datafiles
+      auto oldFile = std::make_unique<DataFile>(dbname_, activeFileId_, true);
+      auto status = oldFile->openDataFile();
+      if (!status.ok()) {
+        return status;
+      }
+      oldDataFiles_.emplace(activeFileId_, std::move(oldFile));
+
+      // create new active data file
+      activeFileId_++;
+      allFileIds_.emplace_back(activeFileId_);
+      activeFile_ = std::make_unique<DataFile>(dbname_, activeFileId_);
+      status = activeFile_->openDataFile();
+      if (!status.ok()) {
+        return status;
+      }
+      FLOG_INFO("Rolled out a new data file: {}", activeFileId_);
+    }
+  }
+  auto ret = activeFile_->writeLogRecord(std::move(logRecord));
+  if (!ret.ok()) {
+    return ret.status();
+  }
+  return std::move(ret).value();
+}
+
+bool DBImpl::checkValue(const std::string& value) {
+  return value.size() <= FLAGS_max_value_size;
 }
 }  // namespace bitcask

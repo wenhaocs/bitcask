@@ -20,6 +20,13 @@ struct LogRecordHeader {
   LogType logType_;
   uint8_t keySize_{4};  // fixed 4B key size
   uint16_t valueSize_{0};
+
+  LogRecordHeader() = default;
+  LogRecordHeader(const int64_t& tstamp,
+                  const LogType& logType,
+                  const uint8_t& keySize,
+                  const uint16_t& valueSize)
+      : tstamp_(tstamp), logType_(logType), keySize_(keySize), valueSize_(valueSize) {}
 };
 
 // there can be padding, so sum individual ones. 16B.
@@ -37,9 +44,9 @@ class LogRecord {
   LogRecord(const LogRecord&) = delete;
   LogRecord& operator=(const LogRecord&) = delete;
 
-  LogRecord(const int32_t& key, const std::string& value, const LogType logType);
+  LogRecord(const KeyType& key, const std::string& value, const LogType logType);
 
-  explicit LogRecord(const LogRecordHeader& header);
+  explicit LogRecord(std::unique_ptr<LogRecordHeader> header);
 
   void encode();
 
@@ -62,21 +69,26 @@ class LogRecord {
   }
 
   uint16_t getValueSize() {
-    return header_.valueSize_;
+    return header_->valueSize_;
   }
 
   int64_t getTimeStamp() {
-    return header_.tstamp_;
+    return header_->tstamp_;
+  }
+
+  LogType getLogType() {
+    return header_->logType_;
   }
 
   void loadKVFromBuf(const char* kvBuf, int32_t keySize, int32_t valueSize);
 
   ~LogRecord() {
+    // The buf_ is freed with destruction of the LogRecord, usually after put.
     free(buf_);
   }
 
  private:
-  LogRecordHeader header_;
+  std::unique_ptr<LogRecordHeader> header_{nullptr};
   KeyType key_{0};
   std::string value_;
   size_t totalSize_{0};

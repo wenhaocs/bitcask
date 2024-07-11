@@ -18,6 +18,8 @@ class HashIndex : public Index {
 
   Status remove(const KeyType& key) override;
 
+  StatusOr<std::vector<KeyType>> listKeys() override;
+
   HashIndex& operator=(const HashIndex&) = delete;
 
  private:

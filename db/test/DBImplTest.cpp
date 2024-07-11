@@ -31,8 +31,8 @@ TEST_F(DBImplTest, OpenTest) {
     options.readOnly = false;
     auto ret = DB::open(dbname, options);
     ASSERT_TRUE(ret.ok());
-    auto dbPtr = std::move(ret).value();
-    // dbPtr->put(1234, "test_value");
+    auto db = std::move(ret).value();
+    // db->put(1234, "test_value");
 
     // open the same db in rw mode again
     ret = DB::open(dbname, options);
@@ -45,7 +45,7 @@ TEST_F(DBImplTest, OpenTest) {
     options.readOnly = false;
     auto ret = DB::open(dbname, options);
     ASSERT_TRUE(ret.ok());
-    auto dbPtr = std::move(ret).value();
+    auto db = std::move(ret).value();
   }
 
   {  // Open db with existing files in read only mode
@@ -54,8 +54,129 @@ TEST_F(DBImplTest, OpenTest) {
     options.readOnly = true;
     auto ret = DB::open(dbname, options);
     ASSERT_TRUE(ret.ok());
-    auto dbPtr = std::move(ret).value();
+    auto db = std::move(ret).value();
   }
+}
+
+TEST_F(DBImplTest, SimplePutGetTest) {
+  std::string dbname = "/tmp/DBImplTest/PutGetTest";
+  bitcask::Options options;
+  options.readOnly = false;
+  auto ret = DB::open(dbname, options);
+  ASSERT_TRUE(ret.ok());
+  auto db = std::move(ret).value();
+
+  // Put a key-value pair
+  KeyType key = 1234;
+  std::string value = "value1";
+  auto status = db->put(key, value);
+  ASSERT_TRUE(status.ok());
+
+  // Get the value
+  auto getRet = db->get(key);
+  ASSERT_TRUE(getRet.ok());
+  ASSERT_EQ(getRet.value(), value);
+}
+
+TEST_F(DBImplTest, DeleteTest) {
+  std::string dbname = "/tmp/DBImplTest/DeleteTest";
+  bitcask::Options options;
+  options.readOnly = false;
+  auto ret = DB::open(dbname, options);
+  ASSERT_TRUE(ret.ok());
+  auto db = std::move(ret).value();
+
+  // Put a key-value pair
+  KeyType key = 1234;
+  std::string value = "value1";
+  auto status = db->put(key, value);
+  ASSERT_TRUE(status.ok());
+
+  // Delete the key
+  auto deleteStatus = db->deleteKey(key);
+  ASSERT_TRUE(deleteStatus.ok());
+
+  // Try to get the deleted key
+  auto getRet = db->get(key);
+  ASSERT_FALSE(getRet.ok());
+  ASSERT_EQ(getRet.status().code(), Status::Code::kNotFound);
+}
+
+TEST_F(DBImplTest, ListKeysTest) {
+  std::string dbname = "/tmp/DBImplTest/ListKeysTest";
+  bitcask::Options options;
+  options.readOnly = false;
+  auto ret = DB::open(dbname, options);
+  ASSERT_TRUE(ret.ok());
+  auto db = std::move(ret).value();
+
+  // Put some key-value pairs
+  KeyType key1 = 1;
+  std::string value1 = "value1";
+  auto putStatus = db->put(key1, value1);
+  ASSERT_TRUE(putStatus.ok());
+
+  KeyType key2 = 2;
+  std::string value2 = "value2";
+  putStatus = db->put(key2, value2);
+  ASSERT_TRUE(putStatus.ok());
+
+  // List keys
+  auto listRet = db->listKeys();
+  ASSERT_TRUE(listRet.ok());
+  auto keys = listRet.value();
+  ASSERT_EQ(keys.size(), 2);
+  ASSERT_NE(std::find(keys.begin(), keys.end(), key1), keys.end());
+  ASSERT_NE(std::find(keys.begin(), keys.end(), key2), keys.end());
+}
+
+TEST_F(DBImplTest, PutExceedingFileLimitTest) {
+  std::string dbname = "/tmp/DBImplTest/PutExceedingFileLimitTest";
+  bitcask::Options options;
+  options.maxFileSize = 128;  // 128B max file size
+  options.readOnly = false;
+  auto ret = DB::open(dbname, options);
+  ASSERT_TRUE(ret.ok());
+  auto db = std::move(ret).value();
+
+  // Log header is 16B. So each LogRecord is 28B. Each data file should store 4 LogRecords. A total
+  // of 25 data files should be created.
+  for (auto i = 0; i < 100; i++) {
+    KeyType key = reinterpret_cast<KeyType>(i);
+    std::ostringstream ss;
+    ss << std::setw(8) << std::setfill('0') << i;
+    std::string value = ss.str();
+    auto status = db->put(key, value);
+    ASSERT_TRUE(status.ok());
+  }
+
+  auto dbPtr = dynamic_cast<DBImpl*>(db.get());
+  EXPECT_EQ(25, dbPtr->activeFileId_);
+  EXPECT_EQ(25, dbPtr->allFileIds_.size());
+
+  db->close();
+  delete (db.release());
+
+  // Open the db again, check the data files and read data.
+  ret = DB::open(dbname, options);
+  ASSERT_TRUE(ret.ok());
+  db = std::move(ret).value();
+
+  dbPtr = dynamic_cast<DBImpl*>(db.get());
+  EXPECT_EQ(25, dbPtr->activeFileId_);
+  EXPECT_EQ(25, dbPtr->allFileIds_.size());
+
+  for (auto i = 0; i < 100; i++) {
+    KeyType key = reinterpret_cast<KeyType>(i);
+    std::ostringstream ss;
+    ss << std::setw(8) << std::setfill('0') << i;
+    std::string expectedValue = ss.str();
+    auto getRet = db->get(key);
+    EXPECT_TRUE(getRet.ok());
+    EXPECT_EQ(getRet.value(), expectedValue);
+  }
+
+  db->close();
 }
 
 }  // namespace bitcask

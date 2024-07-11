@@ -16,7 +16,8 @@ struct Options {
   // If this writer would prefer to sync the write file after every write operation
   bool syncOnPut = false;
 
-  size_t maxFileSize = 2 * 1024 * 1024;
+  // Max data file size in bytes.
+  size_t maxFileSize = 64 * 1024 * 1024;
 };
 
 }  // namespace bitcask

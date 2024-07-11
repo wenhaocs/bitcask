@@ -51,6 +51,14 @@
 #define UNUSED(x) (void)(x)
 #endif  // UNUSED
 
+#if defined(__GNUC__)
+#define LIKELY(x) (__builtin_expect((x), 1))
+#define UNLIKELY(x) (__builtin_expect((x), 0))
+#else
+#define LIKELY(x) (x)
+#define UNLIKELY(x) (x)
+#endif
+
 // Log levels
 enum LogLevel { FATAL, ERROR, WARNING, INFO, VERBOSE1, VERBOSE2, VERBOSE3, VERBOSE4 };
 

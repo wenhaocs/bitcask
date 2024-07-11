@@ -5,6 +5,25 @@ project(bitcask VERSION 0.1.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Set default build type if not specified
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build." FORCE)
+endif()
+
+# Enable compressed debug info and other compile options
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g")
+set(CMAKE_CXX_FLAGS_MINSIZEREL "-Os")
+
+# # Option to enable compressed debug info
+# option(ENABLE_COMPRESSED_DEBUG_INFO "Enable compressed debug information" ON)
+# if(ENABLE_COMPRESSED_DEBUG_INFO)
+#   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -gz")
+#   set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -gz")
+# endif()
+
+
 # Set the output directory for compiled binaries
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
