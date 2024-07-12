@@ -317,6 +317,13 @@ StatusOr<FileOffset> DBImpl::appendLogRecord(std::unique_ptr<LogRecord>&& logRec
   if (!ret.ok()) {
     return ret.status();
   }
+
+  if (options_.syncOnPut) {
+    auto status = sync();
+    if (!status.ok()) {
+      return status;
+    }
+  }
   return std::move(ret).value();
 }
 
