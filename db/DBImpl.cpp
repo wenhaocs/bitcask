@@ -288,31 +288,30 @@ Status DBImpl::constructIndex() {
 }
 
 StatusOr<FileOffset> DBImpl::appendLogRecord(std::unique_ptr<LogRecord>&& logRecord) {
-  {
-    std::unique_lock lock(mutex_);
-    if (activeFile_->getCurrentFileSize() + logRecord->getTotalSize() > options_.maxFileSize) {
-      // roll out a new data file
-      activeFile_->flush();
-      activeFile_->closeDataFile();
+  // rolling out data file and write must be atomic
+  std::unique_lock<std::shared_mutex> lock(mutex_);
+  if (activeFile_->getCurrentFileSize() + logRecord->getTotalSize() > options_.maxFileSize) {
+    // roll out a new data file
+    activeFile_->flush();
+    activeFile_->closeDataFile();
 
-      // reopen this data file as read only mode and append to old datafiles
-      auto oldFile = std::make_unique<DataFile>(dbname_, activeFileId_, true);
-      auto status = oldFile->openDataFile();
-      if (!status.ok()) {
-        return status;
-      }
-      oldDataFiles_.emplace(activeFileId_, std::move(oldFile));
-
-      // create new active data file
-      activeFileId_++;
-      allFileIds_.emplace_back(activeFileId_);
-      activeFile_ = std::make_unique<DataFile>(dbname_, activeFileId_);
-      status = activeFile_->openDataFile();
-      if (!status.ok()) {
-        return status;
-      }
-      FLOG_INFO("Rolled out a new data file: {}", activeFileId_);
+    // reopen this data file as read only mode and append to old datafiles
+    auto oldFile = std::make_unique<DataFile>(dbname_, activeFileId_, true);
+    auto status = oldFile->openDataFile();
+    if (!status.ok()) {
+      return status;
     }
+    oldDataFiles_.emplace(activeFileId_, std::move(oldFile));
+
+    // create new active data file
+    activeFileId_++;
+    allFileIds_.emplace_back(activeFileId_);
+    activeFile_ = std::make_unique<DataFile>(dbname_, activeFileId_);
+    status = activeFile_->openDataFile();
+    if (!status.ok()) {
+      return status;
+    }
+    FLOG_INFO("Rolled out a new data file: {}", activeFileId_);
   }
   auto ret = activeFile_->writeLogRecord(std::move(logRecord));
   if (!ret.ok()) {

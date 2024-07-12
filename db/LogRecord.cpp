@@ -79,7 +79,7 @@ void LogRecord::loadKVFromBuf(const char* kvBuf, int32_t keySize, int32_t valueS
   std::memcpy(&key_, kvBuf, keySize);
   value_.assign(kvBuf + keySize, valueSize);
   totalSize_ = kLogHeaderSize + keySize + valueSize;
-  FVLOG2("Load kv from buf. key: {}, value: {}", key_, value_);
+  FVLOG3("Load kv from buf. key: {}, value: {}", key_, value_);
 }
 
 }  // namespace bitcask

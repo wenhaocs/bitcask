@@ -179,6 +179,48 @@ TEST_F(DBImplTest, PutExceedingFileLimitTest) {
   db->close();
 }
 
+TEST_F(DBImplTest, ConcurrentReadWriteTest) {
+  std::string dbname = "/tmp/DBImplTest/ConcurrentReadWriteTest";
+  bitcask::Options options;
+  options.maxFileSize = 1024;  // 1KB max file size
+  options.readOnly = false;
+  auto ret = DB::open(dbname, options);
+  ASSERT_TRUE(ret.ok());
+  auto db = std::move(ret).value();
+
+  const int numThreads = 100;
+  const int numOperations = 100;
+
+  // Thread 0 will write keys 0-99, values value_0_0-value_0_99
+  // Thread 1 will write keys 100-199, values value_1_0-value_1_99
+  auto rwFunc = [&db](int threadId) {
+    for (int i = 0; i < numOperations; ++i) {
+      KeyType key = reinterpret_cast<KeyType>(threadId * numOperations + i);
+      std::ostringstream ss;
+      auto value = fmt::format("value_{}_{}", threadId, i);
+      auto status = db->put(key, value);
+      ASSERT_TRUE(status.ok());
+
+      auto getRet = db->get(key);
+      ASSERT_TRUE(getRet.ok());
+      EXPECT_EQ(getRet.value(), value);
+    }
+  };
+
+  // Create threads for writing
+  std::vector<std::thread> threads;
+  for (int i = 0; i < numThreads; ++i) {
+    threads.emplace_back(rwFunc, i);
+  }
+
+  // Join all threads
+  for (auto& t : threads) {
+    t.join();
+  }
+
+  db->close();
+}
+
 }  // namespace bitcask
 
 int main(int argc, char** argv) {

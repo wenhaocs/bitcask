@@ -9,10 +9,11 @@ DataFile::DataFile(const std::string dirPath, const uint32_t fileId, bool readOn
   fileName_ = fmt::format("{}/{}.data", dirPath, fileId);
   curWriteOffset_ = 0;
   readOnly_ = readOnly;
+  fileId_ = fileId;
 }
 
 Status DataFile::openDataFile() {
-  std::unique_lock<std::shared_mutex> fileLock(fileMutex_);
+  // std::unique_lock<std::shared_mutex> fileLock(fileMutex_);
   if (readOnly_) {
     FLOG_INFO("Open data file {} in read only mode.", fileName_);
     fd_ = open(fileName_.c_str(), O_RDONLY, 0444);
@@ -38,9 +39,10 @@ Status DataFile::openDataFile() {
 }
 
 Status DataFile::closeDataFile() {
-  std::unique_lock<std::shared_mutex> fileLock(fileMutex_);
+  // std::unique_lock<std::shared_mutex> fileLock(fileMutex_);
   if (fd_ != -1) {
     close(fd_);
+    FVLOG2("[DataFile] Closed data file: {}", fileId_);
     return Status::OK();
   } else {
     return Status::ERROR(Status::Code::kNoSuchFile,
@@ -135,7 +137,6 @@ StatusOr<std::unique_ptr<LogRecord>> DataFile::readLogRecord(FileOffset pos, uin
 }
 
 Status DataFile::readNBytes(int64_t offset, int64_t size, char* buf) {
-  std::shared_lock<std::shared_mutex> fileLock(fileMutex_);
   size_t totalRead = 0;
   while (totalRead < size) {
     auto bytesRead = pread(fd_, buf + totalRead, size - totalRead, offset + totalRead);
@@ -157,6 +158,8 @@ Status DataFile::readNBytes(int64_t offset, int64_t size, char* buf) {
 }
 
 StatusOr<FileOffset> DataFile::writeLogRecord(std::unique_ptr<LogRecord>&& log) {
+  FVLOG2("[DataFile] Writing to data file: {}", fileId_);
+
   log->encode();
 
   // Get the encoded buffer
@@ -164,27 +167,25 @@ StatusOr<FileOffset> DataFile::writeLogRecord(std::unique_ptr<LogRecord>&& log) 
   size_t totalSize = log->getTotalSize();
   FVLOG3("log to write: {}", hexify(buf, totalSize));
   FileOffset recordPos = 0;
-  {
-    std::unique_lock<std::shared_mutex> fileLock(fileMutex_);
-    size_t bytesWritten = 0;
-    while (bytesWritten < totalSize) {
-      ssize_t result =
-          pwrite(fd_, buf + bytesWritten, totalSize - bytesWritten, curWriteOffset_ + bytesWritten);
-      if (result == -1) {
-        FLOG_ERROR("Write failure: {}", std::string(strerror(errno)));
-        return Status::ERROR(Status::Code::kError, "Write failure" + std::string(strerror(errno)));
-      }
-      bytesWritten += result;
+  // std::unique_lock<std::shared_mutex> fileLock(fileMutex_);
+  size_t bytesWritten = 0;
+  while (bytesWritten < totalSize) {
+    ssize_t result =
+        pwrite(fd_, buf + bytesWritten, totalSize - bytesWritten, curWriteOffset_ + bytesWritten);
+    if (result == -1) {
+      FLOG_ERROR("Write failure: {}", std::string(strerror(errno)));
+      return Status::ERROR(Status::Code::kError, "Write failure" + std::string(strerror(errno)));
     }
-
-    recordPos = curWriteOffset_;
-    curWriteOffset_ += totalSize;
+    bytesWritten += result;
   }
+
+  recordPos = curWriteOffset_;
+  curWriteOffset_ += totalSize;
   return recordPos;
 }
 
 Status DataFile::flush() {
-  std::unique_lock<std::shared_mutex> fileLock(fileMutex_);
+  // std::unique_lock<std::shared_mutex> fileLock(fileMutex_);
   if (fd_ == -1) {
     return Status::ERROR(Status::Code::kNoSuchFile,
                          "Error flushing file: file descriptor is invalid");
@@ -199,7 +200,7 @@ Status DataFile::flush() {
 }
 
 int64_t DataFile::getCurrentFileSize() {
-  std::shared_lock<std::shared_mutex> fileLock(fileMutex_);
+  // std::shared_lock<std::shared_mutex> fileLock(fileMutex_);
   return curWriteOffset_;
 }
 
