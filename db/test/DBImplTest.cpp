@@ -221,6 +221,35 @@ TEST_F(DBImplTest, ConcurrentReadWriteTest) {
   db->close();
 }
 
+TEST_F(DBImplTest, IteratorTest) {
+  std::string dbname = "/tmp/DBImplTest/IteratorTest";
+  bitcask::Options options;
+  options.maxFileSize = 1024;  // 1KB max file size
+  options.readOnly = false;
+  auto ret = DB::open(dbname, options);
+  ASSERT_TRUE(ret.ok());
+  auto db = std::move(ret).value();
+
+  // Add some key-value pairs
+  for (int i = 0; i < 100; ++i) {
+    KeyType key = reinterpret_cast<KeyType>(i);
+    std::string value = "value_" + std::to_string(i);
+    auto status = db->put(key, value);
+    ASSERT_TRUE(status.ok());
+  }
+
+  // Create an iterator and iterate through the keys
+  std::function<void(const KeyType&, const std::string&)> func = [](const KeyType& key,
+                                                                    const std::string& value) {
+    std::string expectedValue = "value_" + std::to_string(key);
+    EXPECT_EQ(value, expectedValue);
+  };
+
+  db->fold(std::move(func));
+
+  db->close();
+}
+
 }  // namespace bitcask
 
 int main(int argc, char** argv) {

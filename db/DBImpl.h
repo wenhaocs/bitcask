@@ -11,6 +11,7 @@
 #include "db/Index.h"
 
 DECLARE_uint64(max_value_size);
+DECLARE_uint64(initial_index_size);
 
 namespace bitcask {
 
@@ -37,6 +38,10 @@ class DBImpl : public DB {
   // List all keys in a Bitcask datastore
   StatusOr<std::vector<KeyType>> listKeys() override;
 
+  // Apply func to all key and value in the db. Currently we only support read. No in place update
+  // of values.
+  Status fold(std::function<void(const KeyType&, const std::string&)>&& func);
+
   // merge the datafiles in the db
   Status merge(const std::string& name) override;
 
@@ -62,6 +67,9 @@ class DBImpl : public DB {
   // will exceed the max file limit. If so, create a new active file. This function is called inside
   // put, so there can be race condition. Need to synchronize on the operations on activeFile_.
   StatusOr<FileOffset> appendLogRecord(std::unique_ptr<LogRecord>&& logRecod);
+
+  // Retrieve values by LogPos
+  StatusOr<std::string> getValueByLogPos(std::shared_ptr<LogPos>&& logPos);
 
   bool checkValue(const std::string& value);
 

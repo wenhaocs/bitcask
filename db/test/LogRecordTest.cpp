@@ -18,9 +18,9 @@ class LogRecordTest : public ::testing::Test {
 
 // Test the constructor of LogRecord
 TEST_F(LogRecordTest, ConstructorTest) {
-  int32_t key = 1234;
+  KeyType key = 1234;
   std::string value = "test_value";
-  LogType logType = LogRecord::LogType::WRITE;
+  LogType logType = LogType::WRITE;
 
   LogRecord record(key, value, logType);
 

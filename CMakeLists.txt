@@ -44,11 +44,14 @@ find_package(Glog REQUIRED)
 find_package(Libunwind REQUIRED)
 # Find Googletest
 find_package(Googletest REQUIRED)
+# Find Googlebenchmark
+find_package(Benchmark REQUIRED)
 
 # Include directories
 include_directories(${Gflags_INCLUDE_DIR})
 include_directories(${Glog_INCLUDE_DIR})
 include_directories(${Googletest_INCLUDE_DIR})
+include_directories(${Benchmark_INCLUDE_DIR})
 include_directories(${CMAKE_SOURCE_DIR})  # Add src directory to include paths
 
 # Add the utils library
@@ -73,19 +76,19 @@ target_include_directories(bitcask
 # Link libraries to bitcask
 target_link_libraries(bitcask utils_lib)
 
-# Add the executable
-add_executable(example example/main.cpp)
+
+# Add the benchmark executable
+add_executable(benchmark_db benchmark/bitcaskBenchmark.cpp)
 
 # Include directories for the example executable
-target_include_directories(example
+target_include_directories(benchmark_db
     PRIVATE
         ${PROJECT_SOURCE_DIR}/include
         # ${PROJECT_SOURCE_DIR}/db
 )
 
 # Link libraries to the example executable
-target_link_libraries(example bitcask fmt glog gflags ${LIBUNWIND_LIBRARIES} pthread)
-
+target_link_libraries(benchmark_db $<TARGET_OBJECTS:db_obj> $<TARGET_OBJECTS:utils_obj> ${Benchmark_LIBRARY} fmt glog gflags ${LIBUNWIND_LIBRARIES} pthread)
 
 
 # Include the test subdirectory
