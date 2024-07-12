@@ -229,6 +229,7 @@ if [ "$build_all" = true ] ; then
     build_fmt
     build_gflags
     build_glog
+    build_gtest
 fi
 
 
