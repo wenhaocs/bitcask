@@ -27,9 +27,12 @@ Note: Only tested in Ubuntu 20.04.6 with gcc 9.4.0 and g++ 9.4.0.
         --all) build_all=true ;;
    ```
 ## Build
-`cmake -DCMAKE_BUILD_TYPE=Release ..`
-
-`make`
+```
+mkdir build
+cd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+make -j<N>
+```
 
 ## How to use
 Find `bin/libbitcask.a` in the build folder. Include all files in `include` and link `libbitcask.a` in your cpp project.
