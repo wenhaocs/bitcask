@@ -1,8 +1,11 @@
 ## Clone
    git clone --recurse-submodules https://github.com/wenhaocs/ProjectExample.git
+
 ## Prerequisites
 cmake 3.10 minimum
+
 gcc and g++
+
 make
 
 Note: Only tested in Ubuntu 20.04.6 with gcc 9.4.0 and g++ 9.4.0.
