@@ -73,8 +73,9 @@ StatusOr<std::string> DBImpl::get(const KeyType& key) {
     return ret.status();
   }
 
+  auto logPos = std::move(ret).value();
   // read from disk
-  auto valueRet = getValueByLogPos(std::move(ret).value());
+  auto valueRet = getValueByLogPos(std::move(logPos));
 
   if (!valueRet.ok()) {
     return valueRet.status();
@@ -163,7 +164,9 @@ Status DBImpl::sync() {
 // Close a Bitcask data store and flush all pending writes (if any) to disk.
 Status DBImpl::close() {
   sync();
-  fileLock_->unlock();
+  if (fileLock_) {
+    fileLock_->unlock();
+  }
   return Status::OK();
 }
 
@@ -297,7 +300,7 @@ StatusOr<FileOffset> DBImpl::appendLogRecord(std::unique_ptr<LogRecord>&& logRec
     // create new active data file
     activeFileId_++;
     allFileIds_.emplace_back(activeFileId_);
-    activeFile_ = std::make_unique<DataFile>(dbname_, activeFileId_);
+    activeFile_.reset(new DataFile(dbname_, activeFileId_));
     status = activeFile_->openDataFile();
     if (!status.ok()) {
       return status;
