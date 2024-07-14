@@ -34,6 +34,7 @@ Status DataFile::openDataFile() {
     return Status::ERROR(Status::Code::kOpenFileError,
                          "Error opening file: " + std::string(strerror(errno)));
   } else {
+    FVLOG1("[DataFile] Opened data file {} with file descriptor: {}", fileId_, fd_);
     return Status::OK();
   }
 }
@@ -41,8 +42,9 @@ Status DataFile::openDataFile() {
 Status DataFile::closeDataFile() {
   // std::unique_lock<std::shared_mutex> fileLock(fileMutex_);
   if (fd_ != -1) {
+    FVLOG1("[DataFile] Closing data file {} with fd: {}", fileId_, fd_);
     close(fd_);
-    FVLOG2("[DataFile] Closed data file: {}", fileId_);
+    fd_ = -1;
     return Status::OK();
   } else {
     return Status::ERROR(Status::Code::kNoSuchFile,

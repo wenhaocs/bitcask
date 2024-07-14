@@ -28,6 +28,19 @@ class Index {
 
   virtual StatusOr<std::vector<KeyType>> listKeys() = 0;
 
+  struct IterRes {
+    KeyType key;
+    std::shared_ptr<LogPos> logPos;
+  };
+
+  class Iterator {
+   public:
+    virtual ~Iterator() = default;
+    virtual std::unique_ptr<IterRes> next() = 0;
+  };
+
+  virtual std::unique_ptr<Iterator> createIterator() = 0;
+
   Index& operator=(const Index&) = delete;
 
   virtual ~Index() = default;

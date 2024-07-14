@@ -47,7 +47,7 @@ class DataFile {
   Status readNBytes(int64_t offset, int64_t size, char* buf);
 
   FileID fileId_{0};
-  int64_t curWriteOffset_{0};
+  FileOffset curWriteOffset_{0};
   std::string fileName_;
   bool readOnly_{false};
 

@@ -166,7 +166,7 @@ build_gflags() {
     cd external/gflags
     mkdir -p build
     cd build
-    cmake -DCMAKE_BUILD_TYPE=Release "${common_cmake_args[@]}" -DBUILD_SHARED_LIBS=OFF ..
+    cmake -DCMAKE_BUILD_TYPE=Release "${common_cmake_args[@]}" ..
     make -s -j$(nproc)
     make -s install
     cd ../../..
@@ -181,7 +181,7 @@ build_glog() {
     cd external/glog
     mkdir -p build
     cd build
-    cmake -DCMAKE_BUILD_TYPE=Release "${common_cmake_args[@]}" -DBUILD_SHARED_LIBS=OFF ..
+    cmake -DCMAKE_BUILD_TYPE=Release "${common_cmake_args[@]}" ..
     make -s -j$(nproc)
     make -s install
     cd ../../..
@@ -195,7 +195,21 @@ build_gtest() {
     cd external/gtest
     mkdir -p build
     cd build
-    cmake -DCMAKE_BUILD_TYPE=Release "${common_cmake_args[@]}" -DBUILD_SHARED_LIBS=OFF ..
+    cmake -DCMAKE_BUILD_TYPE=Release "${common_cmake_args[@]}" ..
+    make -s -j$(nproc)
+    make -s install
+    cd ../../..
+}
+
+# Build googlebenchmark
+build_benchmark() {
+    echo "/********************************/"
+    echo "/*** Building googlebenchmark ***/"
+    echo "/********************************/"
+    cd external/benchmark
+    mkdir -p build
+    cd build
+    cmake -DCMAKE_BUILD_TYPE=Release "${common_cmake_args[@]}" -DBENCHMARK_ENABLE_GTEST_TESTS=OFF "-DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS} -Wno-error=unused-parameter" ..
     make -s -j$(nproc)
     make -s install
     cd ../../..
@@ -214,6 +228,7 @@ while [[ "$#" -gt 0 ]]; do
         --gflags) build_gflags ;;
         --glog) build_glog ;;
         --gtest) build_gtest ;;
+        --benchmark) build_benchmark ;;
         --all) build_all=true ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
     esac
@@ -230,6 +245,7 @@ if [ "$build_all" = true ] ; then
     build_gflags
     build_glog
     build_gtest
+    build_benchmark
 fi
 
 

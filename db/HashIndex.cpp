@@ -43,4 +43,9 @@ StatusOr<std::vector<KeyType>> HashIndex::listKeys() {
   return keys;
 }
 
+std::unique_ptr<HashIndex::Iterator> HashIndex::createIterator() {
+  std::shared_lock<std::shared_mutex> lock(mutex_);
+  return std::make_unique<HashIndexIterator>(*this);
+}
+
 }  // namespace bitcask

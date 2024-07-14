@@ -43,6 +43,10 @@ class DB {
   // List all keys in a Bitcask datastore
   virtual StatusOr<std::vector<KeyType>> listKeys() = 0;
 
+  // Apply func to all key and value in the db. Currently we only support read. No in place update
+  // of values.
+  virtual Status fold(std::function<void(const KeyType&, const std::string&)>&& func) = 0;
+
   // merge the datafiles in the db
   virtual Status merge(const std::string& name) = 0;
 

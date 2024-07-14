@@ -6,6 +6,7 @@
 DEFINE_uint64(max_value_size,
               4096,
               "Max length for the value string. The max of this value is 65535");
+DEFINE_uint64(initial_index_size, 1024 * 1024, "The intial size of index");
 
 namespace bitcask {
 
@@ -72,24 +73,15 @@ StatusOr<std::string> DBImpl::get(const KeyType& key) {
     return ret.status();
   }
 
-  // read from disk
   auto logPos = std::move(ret).value();
-  StatusOr<std::unique_ptr<LogRecord>> logRet;
-  if (logPos->fileId_ == activeFileId_) {
-    logRet = activeFile_->readLogRecord(logPos->pos_, logPos->valueSize_);
-  } else {
-    if (oldDataFiles_.find(logPos->fileId_) == oldDataFiles_.end()) {
-      FLOG_ERROR("Data file not found: {}", logPos->fileId_);
-      return Status::ERROR(Status::Code::kNoSuchFile, "data file not found.");
-    }
-    logRet = oldDataFiles_.at(logPos->fileId_)->readLogRecord(logPos->pos_, logPos->valueSize_);
+  // read from disk
+  auto valueRet = getValueByLogPos(std::move(logPos));
+
+  if (!valueRet.ok()) {
+    return valueRet.status();
   }
 
-  if (!logRet.ok()) {
-    return logRet.status();
-  }
-
-  return std::move(logRet).value()->getValue();
+  return std::move(valueRet).value();
 }
 
 // Store a key and value in a Bitcask datastore.
@@ -172,7 +164,9 @@ Status DBImpl::sync() {
 // Close a Bitcask data store and flush all pending writes (if any) to disk.
 Status DBImpl::close() {
   sync();
-  fileLock_->unlock();
+  if (fileLock_) {
+    fileLock_->unlock();
+  }
   return Status::OK();
 }
 
@@ -244,7 +238,7 @@ Status DBImpl::openAllDataFiles() {
 }
 
 Status DBImpl::constructIndex() {
-  index_ = std::make_unique<HashIndex>(100);
+  index_ = std::make_unique<HashIndex>(FLAGS_initial_index_size);
 
   for (const auto& fileId : allFileIds_) {
     DataFile* curDatafile{nullptr};
@@ -306,7 +300,7 @@ StatusOr<FileOffset> DBImpl::appendLogRecord(std::unique_ptr<LogRecord>&& logRec
     // create new active data file
     activeFileId_++;
     allFileIds_.emplace_back(activeFileId_);
-    activeFile_ = std::make_unique<DataFile>(dbname_, activeFileId_);
+    activeFile_.reset(new DataFile(dbname_, activeFileId_));
     status = activeFile_->openDataFile();
     if (!status.ok()) {
       return status;
@@ -317,7 +311,45 @@ StatusOr<FileOffset> DBImpl::appendLogRecord(std::unique_ptr<LogRecord>&& logRec
   if (!ret.ok()) {
     return ret.status();
   }
+
+  if (options_.syncOnPut) {
+    auto status = sync();
+    if (!status.ok()) {
+      return status;
+    }
+  }
   return std::move(ret).value();
+}
+
+StatusOr<std::string> DBImpl::getValueByLogPos(std::shared_ptr<LogPos>&& logPos) {
+  // read from disk
+  StatusOr<std::unique_ptr<LogRecord>> logRet;
+  if (logPos->fileId_ == activeFileId_) {
+    logRet = activeFile_->readLogRecord(logPos->pos_, logPos->valueSize_);
+  } else {
+    if (oldDataFiles_.find(logPos->fileId_) == oldDataFiles_.end()) {
+      FLOG_ERROR("Data file not found: {}", logPos->fileId_);
+      return Status::ERROR(Status::Code::kNoSuchFile, "data file not found.");
+    }
+    logRet = oldDataFiles_.at(logPos->fileId_)->readLogRecord(logPos->pos_, logPos->valueSize_);
+  }
+
+  if (!logRet.ok()) {
+    return logRet.status();
+  }
+  return std::move(logRet).value()->getValue();
+}
+
+Status DBImpl::fold(std::function<void(const KeyType&, const std::string&)>&& func) {
+  auto iterator = index_->createIterator();
+  while (auto res = iterator->next()) {
+    auto valueRet = getValueByLogPos(std::move(res->logPos));
+    if (!valueRet.ok()) {
+      return valueRet.status();
+    }
+    func(res->key, valueRet.value());
+  }
+  return Status::OK();
 }
 
 bool DBImpl::checkValue(const std::string& value) {
