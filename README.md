@@ -28,6 +28,7 @@ Note: Only tested in Ubuntu 20.04.6 with gcc 9.4.0 and g++ 9.4.0.
    ```
 ## Build
 `cmake -DCMAKE_BUILD_TYPE=Release ..`
+
 `make`
 
 ## How to use
